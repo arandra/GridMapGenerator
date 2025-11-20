@@ -97,3 +97,12 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+GridMapGenerator/[Ll]ibrary/
+GridMapGenerator/[Tt]emp/
+GridMapGenerator/[Oo]bj/
+GridMapGenerator/[Bb]uild/
+GridMapGenerator/[Bb]uilds/
+GridMapGenerator/[Ll]ogs/
+GridMapGenerator/[Uu]ser[Ss]ettings/
+GridMapGenerator/*.log
+
