@@ -1,0 +1,10 @@
+{
+  "name": "GridMapGenerator.Editor",
+  "rootNamespace": "GridMapGenerator.Editor",
+  "references": [
+    "GridMapGenerator"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ]
+}

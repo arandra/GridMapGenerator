@@ -10,9 +10,9 @@ namespace GridMapGenerator.Core
     /// </summary>
     public sealed class GridPipeline
     {
-        private readonly List<IGridModule> _modules = new();
+        private readonly List<IGridModule> modules = new();
 
-        public IReadOnlyList<IGridModule> Modules => _modules;
+        public IReadOnlyList<IGridModule> Modules => modules;
 
         public void RegisterModule(IGridModule module)
         {
@@ -21,21 +21,21 @@ namespace GridMapGenerator.Core
                 throw new ArgumentNullException(nameof(module));
             }
 
-            _modules.Add(module);
+            modules.Add(module);
         }
 
-        public bool RemoveModule(IGridModule module) => _modules.Remove(module);
+        public bool RemoveModule(IGridModule module) => modules.Remove(module);
 
-        public void ClearModules() => _modules.Clear();
+        public void ClearModules() => modules.Clear();
 
         public GridContext Run(GridContext context = null)
         {
-            if (_modules.Count == 0)
+            if (modules.Count == 0)
             {
                 throw new InvalidOperationException("파이프라인에 최소 1개의 모듈이 필요합니다.");
             }
 
-            var orderedModules = _modules
+            var orderedModules = modules
                 .Select((module, order) => new { module, order })
                 .OrderBy(pair => (int)pair.module.Stage)
                 .ThenBy(pair => pair.order)

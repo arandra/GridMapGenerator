@@ -20,6 +20,7 @@ Unity에서 그리드 기반 절차적 지형을 만드는 패키지(`com.arandr
    - 1단계 Shape 모듈 1개 이상을 등록해 빈 그리드를 만듭니다.  
    - 2단계 Generation 모듈로 지형, 용도, 디테일 레이어를 채웁니다. 여러 개 연결 가능.  
    - 3단계 Constraint 모듈로 경로 보정 같은 후처리를 적용합니다.
+   - UI로 구성하고 싶다면 `Create > Grid Map Generator > Pipeline Profile` 에셋을 만들어 인스펙터에서 단계별 모듈 enum(Mask)을 설정하세요. FlatTerrain을 고르면 Scale도 입력합니다.
 
 4) 실행 예시
 ```csharp

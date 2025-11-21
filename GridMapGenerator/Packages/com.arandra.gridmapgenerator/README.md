@@ -26,3 +26,14 @@ GridContext context = pipeline.Run();
 ```
 
 모듈을 원하는 순서로 조합하여 다양한 그리드 지형을 생성할 수 있습니다.
+
+## 인스펙터에서 모듈 선택 (Pipeline Profile)
+1. Project 뷰에서 `Create > Grid Map Generator > Pipeline Profile`을 선택해 프로필 에셋을 생성합니다.  
+2. 인스펙터에서 GridMeta/Seeds/Constraints를 입력하고, Shape/Generation/Constraint 모듈을 enum(Mask)으로 선택합니다. FlatTerrain을 포함하면 Scale 값을 설정합니다.  
+3. 코드에서 프로필을 참조해 실행합니다:
+```csharp
+using GridMapGenerator.Core;
+// 예: public GridPipelineProfile profile;
+GridContext grid = profile.Run();
+```
+프로필을 씬 오브젝트나 컴포넌트에 할당하면 비개발자도 모듈 구성을 UI로 조정할 수 있습니다.
