@@ -1,7 +1,7 @@
 using System;
-using Codex.GridMapGenerator;
+using GridMapGenerator;
 
-namespace Codex.GridMapGenerator.Modules
+namespace GridMapGenerator.Modules
 {
     /// <summary>
     /// 파이프라인 단계 정의 (1단계 Shape → 2단계 Generation → 3단계 Constraint).

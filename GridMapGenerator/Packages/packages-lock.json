@@ -1,7 +1,7 @@
 {
   "dependencies": {
-    "com.codex.gridmapgenerator": {
-      "version": "file:com.codex.gridmapgenerator",
+    "com.arandra.gridmapgenerator": {
+      "version": "file:com.arandra.gridmapgenerator",
       "depth": 0,
       "source": "embedded",
       "dependencies": {}

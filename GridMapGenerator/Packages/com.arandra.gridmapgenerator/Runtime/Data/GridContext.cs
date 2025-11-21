@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Codex.GridMapGenerator
+namespace GridMapGenerator
 {
     [Serializable]
     public enum CoordinatePlane

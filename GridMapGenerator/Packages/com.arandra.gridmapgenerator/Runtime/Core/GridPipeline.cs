@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Codex.GridMapGenerator.Modules;
+using GridMapGenerator.Modules;
 
-namespace Codex.GridMapGenerator.Core
+namespace GridMapGenerator.Core
 {
     /// <summary>
     /// 모듈을 등록된 순서대로 관리하면서 Stage 순서를 보장하는 파이프라인 실행기.

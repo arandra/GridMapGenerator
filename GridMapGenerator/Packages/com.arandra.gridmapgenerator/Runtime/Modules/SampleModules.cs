@@ -1,7 +1,7 @@
-using Codex.GridMapGenerator;
+using GridMapGenerator;
 using UnityEngine;
 
-namespace Codex.GridMapGenerator.Modules
+namespace GridMapGenerator.Modules
 {
     /// <summary>
     /// 지정된 GridMeta 정보를 기반으로 일방향 스트립 형태의 그리드를 만든다.
