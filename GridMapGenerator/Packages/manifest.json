@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "com.codex.gridmapgenerator": "file:../Packages/com.codex.gridmapgenerator",
+    "com.arandra.gridmapgenerator": "file:com.arandra.gridmapgenerator",
     "com.unity.ai.navigation": "2.0.9",
     "com.unity.collab-proxy": "2.10.0",
     "com.unity.ide.rider": "3.0.38",

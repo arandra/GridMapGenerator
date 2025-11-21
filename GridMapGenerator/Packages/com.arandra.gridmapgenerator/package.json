@@ -1,11 +1,11 @@
 {
-  "name": "com.codex.gridmapgenerator",
+  "name": "com.arandra.gridmapgenerator",
   "version": "0.1.0",
-  "displayName": "Codex Grid Map Generator",
+  "displayName": "Arandra Grid Map Generator",
   "description": "Grid-context based procedural terrain pipeline with shape, generation, and constraint modules.",
   "unity": "2022.3",
   "author": {
-    "name": "Codex"
+    "name": "Arandra"
   },
   "keywords": [
     "grid",
