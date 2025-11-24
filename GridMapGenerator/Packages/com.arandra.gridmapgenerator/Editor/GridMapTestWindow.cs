@@ -1,5 +1,6 @@
 using System.Linq;
 using GridMapGenerator.Core;
+using GridMapGenerator.Data;
 using GridMapGenerator.Testing;
 using UnityEditor;
 using UnityEngine;
@@ -73,41 +74,15 @@ namespace GridMapGenerator.Editor
                 "Pipeline Profile", settings.PipelineProfile, typeof(GridPipelineProfile), false);
 
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Tile Prefabs", EditorStyles.boldLabel);
-
-            if (settings.Tiles == null)
+            EditorGUILayout.LabelField("Tile Configuration", EditorStyles.boldLabel);
+            
+            if (settings.TileSet == null)
             {
-                settings.Tiles = new System.Collections.Generic.List<TilePrefabBinding>();
+                EditorGUILayout.HelpBox("Tile Set Data가 필요합니다.", MessageType.Warning);
             }
 
-            int removeIndex = -1;
-            for (int i = 0; i < settings.Tiles.Count; i++)
-            {
-                var tile = settings.Tiles[i];
-                EditorGUILayout.BeginVertical("box");
-                EditorGUILayout.BeginHorizontal();
-                tile.Id = EditorGUILayout.TextField("Id", tile.Id);
-                if (GUILayout.Button("X", GUILayout.Width(24)))
-                {
-                    removeIndex = i;
-                }
-                EditorGUILayout.EndHorizontal();
-
-                tile.TerrainType = (TerrainType)EditorGUILayout.EnumPopup("Terrain Type", tile.TerrainType);
-                tile.Walkable = EditorGUILayout.Toggle("Walkable", tile.Walkable);
-                tile.Prefab = (GameObject)EditorGUILayout.ObjectField("Prefab", tile.Prefab, typeof(GameObject), false);
-                EditorGUILayout.EndVertical();
-            }
-
-            if (removeIndex >= 0)
-            {
-                settings.Tiles.RemoveAt(removeIndex);
-            }
-
-            if (GUILayout.Button("Add Tile Mapping"))
-            {
-                settings.Tiles.Add(new TilePrefabBinding());
-            }
+            settings.TileSet = (TileSetData)EditorGUILayout.ObjectField(
+                "Tile Set", settings.TileSet, typeof(TileSetData), false);
         }
 
         private void DrawSeedControls()
@@ -179,7 +154,9 @@ namespace GridMapGenerator.Editor
 
             foreach (var (coords, cell) in context.EnumerateCells())
             {
-                var binding = settings.Tiles.FirstOrDefault(t => t.TerrainType == cell.Terrain.TerrainType);
+                if (settings.TileSet == null) continue;
+
+                var binding = settings.TileSet.Tiles.FirstOrDefault(t => t.TypeId == cell.Terrain.TypeId);
                 if (binding == null || binding.Prefab == null)
                 {
                     continue;
@@ -191,7 +168,7 @@ namespace GridMapGenerator.Editor
                     continue;
                 }
 
-                instance.name = $"{binding.Id}_{coords.x}_{coords.y}";
+                instance.name = $"{binding.TypeId}_{coords.x}_{coords.y}";
                 instance.transform.SetParent(root.transform);
                 instance.transform.position = ToWorldPosition(context, coords);
             }

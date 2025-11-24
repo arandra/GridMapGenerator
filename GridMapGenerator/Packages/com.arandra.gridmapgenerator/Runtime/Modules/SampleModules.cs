@@ -32,8 +32,9 @@ namespace GridMapGenerator.Modules
             // 기본값을 명시적으로 설정해 두면 이후 모듈 작성이 쉬워진다.
             foreach (var (coords, cell) in context.EnumerateCells())
             {
-                cell.Terrain.TerrainType = TerrainType.Unknown;
-                cell.Usage.Channels = UsageChannel.None;
+                cell.Terrain.TypeId = string.Empty;
+                cell.Terrain.TerrainNoise = 0f;
+                cell.Usage.IsBlocked = false;
                 cell.Detail.VariantIndex = -1;
                 cell.Detail.DetailNoise = 0f;
             }
@@ -66,13 +67,6 @@ namespace GridMapGenerator.Modules
                     (coords.y + offset.y) * _scale);
 
                 cell.Terrain.TerrainNoise = noise;
-                cell.Terrain.TerrainType = noise switch
-                {
-                    < 0.3f => TerrainType.Water,
-                    < 0.55f => TerrainType.Plain,
-                    < 0.8f => TerrainType.Hill,
-                    _ => TerrainType.Mountain
-                };
             }
         }
     }
@@ -88,25 +82,7 @@ namespace GridMapGenerator.Modules
         {
             foreach (var (_, cell) in context.EnumerateCells())
             {
-                var channels = UsageChannel.None;
-                switch (cell.Terrain.TerrainType)
-                {
-                    case TerrainType.Plain:
-                    case TerrainType.Hill:
-                        channels |= UsageChannel.Walkable;
-                        break;
-                    case TerrainType.Mountain:
-                        channels |= UsageChannel.Blocking;
-                        break;
-                    case TerrainType.Water:
-                        channels |= UsageChannel.Blocking;
-                        break;
-                    default:
-                        channels = UsageChannel.None;
-                        break;
-                }
-
-                cell.Usage.Channels = channels;
+                cell.Usage.IsBlocked = false;
             }
         }
     }
@@ -129,24 +105,13 @@ namespace GridMapGenerator.Modules
 
                 cell.Detail.EnsureTags();
                 cell.Detail.Tags.Clear();
-                if (cell.Terrain.TerrainType == TerrainType.Water)
-                {
-                    cell.Detail.Tags.Add("water");
-                }
-                else if (cell.Terrain.TerrainType == TerrainType.Mountain)
-                {
-                    cell.Detail.Tags.Add("cliff");
-                }
-                else
-                {
-                    cell.Detail.Tags.Add("ground");
-                }
+                cell.Detail.Tags.Add("default");
             }
         }
     }
 
     /// <summary>
-    /// Entry/Exit 포인트 사이를 따라 walkable 경로를 강제한다.
+    /// Entry/Exit 포인트 사이를 따라 Block을 해제한 경로를 강제한다.
     /// </summary>
     public sealed class ConnectivityConstraintModule : IGridConstraintModule
     {
@@ -165,7 +130,7 @@ namespace GridMapGenerator.Modules
             var current = start;
             while (current != end)
             {
-                ForceWalkable(context, current);
+                ForceUnblocked(context, current);
 
                 if (current.x < end.x) current.x++;
                 else if (current.x > end.x) current.x--;
@@ -173,11 +138,11 @@ namespace GridMapGenerator.Modules
                 else current.y--;
             }
 
-            ForceWalkable(context, end);
+            ForceUnblocked(context, end);
 
             foreach (var checkpoint in context.Constraints.Checkpoints)
             {
-                ForceWalkable(context, ClampToGrid(context, checkpoint));
+                ForceUnblocked(context, ClampToGrid(context, checkpoint));
             }
         }
 
@@ -190,12 +155,11 @@ namespace GridMapGenerator.Modules
             return clamped;
         }
 
-        private static void ForceWalkable(GridContext context, Vector2Int position)
+        private static void ForceUnblocked(GridContext context, Vector2Int position)
         {
             var cell = context[position.x, position.y];
-            cell.Terrain.TerrainType = TerrainType.Plain;
-            cell.Usage.Channels &= ~UsageChannel.Blocking;
-            cell.Usage.AddChannel(UsageChannel.Walkable);
+            cell.Terrain.TypeId = string.IsNullOrEmpty(cell.Terrain.TypeId) ? string.Empty : cell.Terrain.TypeId;
+            cell.Usage.IsBlocked = false;
             cell.Detail.EnsureTags();
             if (!cell.Detail.Tags.Contains("path"))
             {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using GridMapGenerator.Core;
+using GridMapGenerator.Data;
 using UnityEngine;
 
 namespace GridMapGenerator.Testing
@@ -21,16 +22,6 @@ namespace GridMapGenerator.Testing
         public Vector2Int PreviewSize = new(16, 16);
 
         [Header("Tiles")]
-        public List<TilePrefabBinding> Tiles = new();
-    }
-
-    [Serializable]
-    public sealed class TilePrefabBinding
-    {
-        public string Id = "Tile";
-        public TerrainType TerrainType = TerrainType.Plain;
-        [Tooltip("이동 가능 여부 정보. 배치 시 Usage와 연동은 선택적으로 사용할 수 있다.")]
-        public bool Walkable = true;
-        public GameObject Prefab;
+        public TileSetData TileSet;
     }
 }

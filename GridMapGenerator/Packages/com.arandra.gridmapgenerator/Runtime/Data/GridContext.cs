@@ -135,27 +135,14 @@ namespace GridMapGenerator
     [Serializable]
     public struct TerrainLayer
     {
-        public TerrainType TerrainType;
+        public string TypeId;
         public float TerrainNoise;
-    }
-
-    [Flags]
-    public enum UsageChannel
-    {
-        None = 0,
-        Walkable = 1 << 0,
-        Driveable = 1 << 1,
-        Blocking = 1 << 2
     }
 
     [Serializable]
     public struct UsageLayer
     {
-        public UsageChannel Channels;
-
-        public readonly bool Contains(UsageChannel channel) => (Channels & channel) == channel;
-
-        public void AddChannel(UsageChannel channel) => Channels |= channel;
+        public bool IsBlocked;
     }
 
     [Serializable]
@@ -171,12 +158,4 @@ namespace GridMapGenerator
         }
     }
 
-    public enum TerrainType
-    {
-        Unknown = 0,
-        Plain = 1,
-        Hill = 2,
-        Mountain = 3,
-        Water = 4
-    }
 }
