@@ -12,6 +12,7 @@
 - `GridContext` 및 관련 데이터 모델 (`Runtime/Data`)
 - Core 파이프라인과 모듈 실행기 (`Runtime/Core`)
 - 단계별 모듈 인터페이스와 기본 구현 예시 (`Runtime/Modules`)
+- 에디터 테스트 설정 및 창 (`Runtime/Testing`, `Editor`)
 
 ## 빠른 시작
 ```csharp
@@ -37,3 +38,9 @@ using GridMapGenerator.Core;
 GridContext grid = profile.Run();
 ```
 프로필을 씬 오브젝트나 컴포넌트에 할당하면 비개발자도 모듈 구성을 UI로 조정할 수 있습니다.
+
+## 에디터 테스트 모드 (Test Runner)
+1. `Create > Grid Map Generator > Test Settings`로 설정 자산을 만든 뒤, Pipeline Profile과 Tile 매핑(지형 타입별 Prefab/Walkable)을 등록합니다.  
+2. `Window > Grid Map Generator > Test Runner` 창을 열어 Test Settings를 지정하고 Root Object Name, Preview Size(폭/높이 0이면 무한 → Preview Size 사용), 시드를 입력/랜덤 선택합니다.  
+3. “Generate”로 현재 씬에 프리팹을 배치합니다. 루트에 자식이 있으면 경고 후 삭제 여부를 묻고, “확인 및 다음에 보지 않음”을 선택하면 이후 경고를 생략합니다.  
+4. “Delete”는 루트 하위 자식만 삭제해 초기 상태를 복원합니다. 마지막 시드는 EditorPrefs에 저장되어 Unity 재시작 후에도 복원됩니다.

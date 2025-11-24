@@ -39,6 +39,9 @@ namespace GridMapGenerator.Core
             CoordinatePlane = CoordinatePlane.XZ
         };
 
+        [Tooltip("GridMeta의 폭/높이가 0(무한)일 때 미리보기 및 런타임에서 사용할 대체 크기")]
+        public Vector2Int InfinitePreviewSize = new(16, 16);
+
         public Seeds Seeds = new()
         {
             GlobalSeed = 1234,
@@ -66,13 +69,19 @@ namespace GridMapGenerator.Core
         /// <summary>
         /// 프로필에서 선택한 모듈 조합으로 파이프라인을 구성합니다.
         /// </summary>
-        public GridPipeline CreatePipeline()
+        public GridPipeline CreatePipeline(Seeds? seedsOverride = null, Vector2Int? infiniteSizeOverride = null)
         {
             var pipeline = new GridPipeline();
 
             var constraints = Constraints ?? new ConstraintsInfo();
+            var seedsToUse = seedsOverride ?? Seeds;
+            var infiniteSize = infiniteSizeOverride ?? InfinitePreviewSize;
 
-            RegisterShape(pipeline, constraints);
+            var meta = GridMeta;
+            meta.Width = AdjustInfiniteSize(meta.Width, infiniteSize.x);
+            meta.Height = AdjustInfiniteSize(meta.Height, infiniteSize.y);
+
+            RegisterShape(pipeline, constraints, meta, seedsToUse);
             RegisterGeneration(pipeline);
             RegisterConstraints(pipeline, constraints);
 
@@ -84,13 +93,23 @@ namespace GridMapGenerator.Core
         /// </summary>
         public GridContext Run() => CreatePipeline().Run();
 
-        private void RegisterShape(GridPipeline pipeline, ConstraintsInfo constraints)
+        private static int AdjustInfiniteSize(int value, int fallback)
+        {
+            if (value > 0)
+            {
+                return value;
+            }
+
+            return Mathf.Max(1, fallback);
+        }
+
+        private void RegisterShape(GridPipeline pipeline, ConstraintsInfo constraints, GridMeta meta, Seeds seeds)
         {
             switch (ShapeModule)
             {
                 case ShapeModuleOption.OneDirectionalStrip:
                 default:
-                    pipeline.RegisterModule(new OneDirectionalStripGridModule(GridMeta, Seeds, constraints));
+                    pipeline.RegisterModule(new OneDirectionalStripGridModule(meta, seeds, constraints));
                     break;
             }
         }

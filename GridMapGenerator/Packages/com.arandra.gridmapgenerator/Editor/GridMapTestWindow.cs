@@ -1,0 +1,292 @@
+using System.Linq;
+using GridMapGenerator.Core;
+using GridMapGenerator.Testing;
+using UnityEditor;
+using UnityEngine;
+
+namespace GridMapGenerator.Editor
+{
+    public sealed class GridMapTestWindow : EditorWindow
+    {
+        private const string SeedPrefKey = "GridMapGenerator.Test.LastSeed";
+        private const string SuppressWarningPrefKey = "GridMapGenerator.Test.SuppressClearWarning";
+
+        private GridMapTestSettings settings;
+        private int seed;
+        private bool seedLoaded;
+
+        [MenuItem("Window/Grid Map Generator/Test Runner")]
+        public static void Open()
+        {
+            GetWindow<GridMapTestWindow>("Grid Map Test");
+        }
+
+        private void OnEnable()
+        {
+            if (!seedLoaded)
+            {
+                seed = EditorPrefs.GetInt(SeedPrefKey, 1234);
+                seedLoaded = true;
+            }
+        }
+
+        private void OnGUI()
+        {
+            EditorGUILayout.LabelField("Grid Map Test Runner", EditorStyles.boldLabel);
+            settings = (GridMapTestSettings)EditorGUILayout.ObjectField("Test Settings", settings, typeof(GridMapTestSettings), false);
+
+            if (settings == null)
+            {
+                EditorGUILayout.HelpBox("Test Settings 자산을 선택하거나 생성하세요.", MessageType.Info);
+                if (GUILayout.Button("Create Test Settings Asset..."))
+                {
+                    CreateSettingsAsset();
+                }
+                return;
+            }
+
+            EditorGUI.BeginChangeCheck();
+            DrawPreviewSettings();
+            EditorGUILayout.Space();
+            DrawSeedControls();
+            EditorGUILayout.Space();
+            DrawActions();
+
+            if (EditorGUI.EndChangeCheck())
+            {
+                EditorUtility.SetDirty(settings);
+            }
+        }
+
+        private void DrawPreviewSettings()
+        {
+            EditorGUILayout.LabelField("Preview Options", EditorStyles.boldLabel);
+            settings.RootObjectName = EditorGUILayout.TextField("Root Object Name", settings.RootObjectName);
+            settings.PreviewSize = EditorGUILayout.Vector2IntField("Preview Size (for infinite)", settings.PreviewSize);
+
+            if (settings.PipelineProfile == null)
+            {
+                EditorGUILayout.HelpBox("Pipeline Profile이 필요합니다.", MessageType.Warning);
+            }
+
+            settings.PipelineProfile = (GridPipelineProfile)EditorGUILayout.ObjectField(
+                "Pipeline Profile", settings.PipelineProfile, typeof(GridPipelineProfile), false);
+
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Tile Prefabs", EditorStyles.boldLabel);
+
+            if (settings.Tiles == null)
+            {
+                settings.Tiles = new System.Collections.Generic.List<TilePrefabBinding>();
+            }
+
+            int removeIndex = -1;
+            for (int i = 0; i < settings.Tiles.Count; i++)
+            {
+                var tile = settings.Tiles[i];
+                EditorGUILayout.BeginVertical("box");
+                EditorGUILayout.BeginHorizontal();
+                tile.Id = EditorGUILayout.TextField("Id", tile.Id);
+                if (GUILayout.Button("X", GUILayout.Width(24)))
+                {
+                    removeIndex = i;
+                }
+                EditorGUILayout.EndHorizontal();
+
+                tile.TerrainType = (TerrainType)EditorGUILayout.EnumPopup("Terrain Type", tile.TerrainType);
+                tile.Walkable = EditorGUILayout.Toggle("Walkable", tile.Walkable);
+                tile.Prefab = (GameObject)EditorGUILayout.ObjectField("Prefab", tile.Prefab, typeof(GameObject), false);
+                EditorGUILayout.EndVertical();
+            }
+
+            if (removeIndex >= 0)
+            {
+                settings.Tiles.RemoveAt(removeIndex);
+            }
+
+            if (GUILayout.Button("Add Tile Mapping"))
+            {
+                settings.Tiles.Add(new TilePrefabBinding());
+            }
+        }
+
+        private void DrawSeedControls()
+        {
+            EditorGUILayout.LabelField("Seed", EditorStyles.boldLabel);
+            int newSeed = EditorGUILayout.IntField("Seed", seed);
+            if (newSeed != seed)
+            {
+                seed = newSeed;
+                EditorPrefs.SetInt(SeedPrefKey, seed);
+            }
+
+            if (GUILayout.Button("Random Seed"))
+            {
+                seed = UnityEngine.Random.Range(int.MinValue, int.MaxValue);
+                EditorPrefs.SetInt(SeedPrefKey, seed);
+            }
+        }
+
+        private void DrawActions()
+        {
+            EditorGUILayout.LabelField("Actions", EditorStyles.boldLabel);
+            using (new EditorGUI.DisabledScope(settings.PipelineProfile == null))
+            {
+                if (GUILayout.Button("Generate"))
+                {
+                    Generate();
+                }
+            }
+
+            if (GUILayout.Button("Delete (Clear Root Children)"))
+            {
+                DeleteGenerated();
+            }
+        }
+
+        private void Generate()
+        {
+            if (settings.PipelineProfile == null)
+            {
+                EditorUtility.DisplayDialog("Pipeline Profile 필요", "Pipeline Profile을 설정하세요.", "확인");
+                return;
+            }
+
+            var root = FindOrCreateRoot(settings.RootObjectName);
+            if (!ConfirmClearIfNeeded(root))
+            {
+                return;
+            }
+
+            ClearChildren(root);
+
+            var seedsOverride = settings.PipelineProfile.Seeds;
+            seedsOverride.GlobalSeed = seed;
+            if (seedsOverride.LocalSeed == 0)
+            {
+                seedsOverride.LocalSeed = seed;
+            }
+
+            Vector2Int previewSize = settings.PreviewSize;
+            if (previewSize.x <= 0 || previewSize.y <= 0)
+            {
+                EditorUtility.DisplayDialog("프리뷰 크기 필요", "Preview Size는 1 이상이어야 합니다.", "확인");
+                return;
+            }
+
+            var pipeline = settings.PipelineProfile.CreatePipeline(seedsOverride, previewSize);
+            var context = pipeline.Run();
+
+            foreach (var (coords, cell) in context.EnumerateCells())
+            {
+                var binding = settings.Tiles.FirstOrDefault(t => t.TerrainType == cell.Terrain.TerrainType);
+                if (binding == null || binding.Prefab == null)
+                {
+                    continue;
+                }
+
+                var instance = (GameObject)PrefabUtility.InstantiatePrefab(binding.Prefab);
+                if (instance == null)
+                {
+                    continue;
+                }
+
+                instance.name = $"{binding.Id}_{coords.x}_{coords.y}";
+                instance.transform.SetParent(root.transform);
+                instance.transform.position = ToWorldPosition(context, coords);
+            }
+        }
+
+        private void DeleteGenerated()
+        {
+            var root = FindOrCreateRoot(settings.RootObjectName);
+            ClearChildren(root);
+        }
+
+        private static GameObject FindOrCreateRoot(string name)
+        {
+            var root = GameObject.Find(name);
+            if (root == null)
+            {
+                root = new GameObject(name);
+                Undo.RegisterCreatedObjectUndo(root, "Create Grid Map Root");
+            }
+
+            return root;
+        }
+
+        private bool ConfirmClearIfNeeded(GameObject root)
+        {
+            if (root.transform.childCount == 0)
+            {
+                return true;
+            }
+
+            bool suppress = EditorPrefs.GetBool(SuppressWarningPrefKey, false);
+            if (suppress)
+            {
+                return true;
+            }
+
+            int result = EditorUtility.DisplayDialogComplex(
+                "경고",
+                "루트 오브젝트에 자식이 있습니다. 삭제 후 다시 생성할까요?",
+                "확인",
+                "취소",
+                "확인 및 다음에 보지 않음");
+
+            switch (result)
+            {
+                case 0:
+                    return true;
+                case 1:
+                    return false;
+                case 2:
+                    EditorPrefs.SetBool(SuppressWarningPrefKey, true);
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static void ClearChildren(GameObject root)
+        {
+            for (int i = root.transform.childCount - 1; i >= 0; i--)
+            {
+                var child = root.transform.GetChild(i).gameObject;
+                Undo.DestroyObjectImmediate(child);
+            }
+        }
+
+        private static Vector3 ToWorldPosition(GridContext context, Vector2Int coords)
+        {
+            var cellSize = context.Meta.CellSize;
+            var origin = context.Meta.Origin;
+            if (context.Meta.CoordinatePlane == CoordinatePlane.XZ)
+            {
+                return origin + new Vector3(coords.x * cellSize, 0f, coords.y * cellSize);
+            }
+
+            return origin + new Vector3(coords.x * cellSize, coords.y * cellSize, 0f);
+        }
+
+        private void CreateSettingsAsset()
+        {
+            string path = EditorUtility.SaveFilePanelInProject(
+                "Create Grid Map Test Settings",
+                "GridMapTestSettings",
+                "asset",
+                "테스트 설정 자산을 저장할 위치를 선택하세요.");
+
+            if (string.IsNullOrEmpty(path))
+            {
+                return;
+            }
+
+            var asset = ScriptableObject.CreateInstance<GridMapTestSettings>();
+            AssetDatabase.CreateAsset(asset, path);
+            AssetDatabase.SaveAssets();
+            settings = asset;
+        }
+    }
+}

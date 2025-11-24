@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b195f4db09e43359e975a7889870b34, type: 3}
+  m_Name: GridPipelineProfile
+  m_EditorClassIdentifier: GridMapGenerator::GridMapGenerator.Core.GridPipelineProfile
+  GridMeta:
+    Width: 16
+    Height: 16
+    CellSize: 1
+    Origin: {x: 0, y: 0, z: 0}
+    CoordinatePlane: 1
+  InfinitePreviewSize: {x: 16, y: 16}
+  Seeds:
+    GlobalSeed: 1234
+    LocalSeed: 4311
+  Constraints:
+    RequireConnectivity: 0
+    EntryPoint: {x: 0, y: 0}
+    ExitPoint: {x: 0, y: 0}
+    Checkpoints: []
+  ShapeModule: 0
+  GenerationModules: 7
+  FlatTerrainScale: 0.1
+  ConstraintModules: 0
