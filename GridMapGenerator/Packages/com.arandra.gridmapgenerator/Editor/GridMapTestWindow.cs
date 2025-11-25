@@ -83,6 +83,17 @@ namespace GridMapGenerator.Editor
 
             settings.TileSet = (TileSetData)EditorGUILayout.ObjectField(
                 "Tile Set", settings.TileSet, typeof(TileSetData), false);
+
+            if (settings.TileRules == null)
+            {
+                EditorGUILayout.HelpBox("Tile Assignment Rules가 필요합니다.", MessageType.Warning);
+            }
+
+            settings.TileRules = (TileAssignmentRules)EditorGUILayout.ObjectField(
+                "Tile Assignment Rules", settings.TileRules, typeof(TileAssignmentRules), false);
+
+            settings.WfcRules = (WfcTileRules)EditorGUILayout.ObjectField(
+                "WFC Tile Rules", settings.WfcRules, typeof(WfcTileRules), false);
         }
 
         private void DrawSeedControls()
@@ -127,6 +138,12 @@ namespace GridMapGenerator.Editor
                 return;
             }
 
+            if (!ValidateTileRules(out var validationError))
+            {
+                EditorUtility.DisplayDialog("타일 규칙 오류", validationError, "확인");
+                return;
+            }
+
             var root = FindOrCreateRoot(settings.RootObjectName);
             if (!ConfirmClearIfNeeded(root))
             {
@@ -149,7 +166,11 @@ namespace GridMapGenerator.Editor
                 return;
             }
 
-            var pipeline = settings.PipelineProfile.CreatePipeline(seedsOverride, previewSize);
+            var pipeline = settings.PipelineProfile.CreatePipeline(
+                seedsOverride,
+                previewSize,
+                settings.TileRules,
+                settings.TileSet);
             var context = pipeline.Run();
 
             foreach (var (coords, cell) in context.EnumerateCells())
@@ -264,6 +285,44 @@ namespace GridMapGenerator.Editor
             AssetDatabase.CreateAsset(asset, path);
             AssetDatabase.SaveAssets();
             settings = asset;
+        }
+
+        private bool ValidateTileRules(out string error)
+        {
+            if (settings.TileSet == null)
+            {
+                error = "Tile Set Data가 필요합니다.";
+                return false;
+            }
+
+            // TileRules는 WFC를 사용하지 않을 때 필수
+            if (settings.TileRules == null && !settings.PipelineProfile.GenerationModules.HasFlag(GenerationModuleOption.Wfc))
+            {
+                error = "Tile Assignment Rules 자산을 설정하세요.";
+                return false;
+            }
+
+            if (settings.TileRules != null &&
+                !settings.TileRules.TryValidateFor(settings.PipelineProfile.GenerationModules, settings.TileSet, out var ruleError))
+            {
+                error = $"타일 규칙 검증 실패: {ruleError}";
+                return false;
+            }
+
+            if (settings.PipelineProfile.GenerationModules.HasFlag(GenerationModuleOption.Wfc) &&
+                settings.PipelineProfile.WfcRules == null && settings.WfcRules == null)
+            {
+                error = "WFC 모듈이 활성화되어 있으나 WFC Tile Rules가 없습니다.";
+                return false;
+            }
+
+            if (settings.WfcRules != null)
+            {
+                settings.PipelineProfile.WfcRules = settings.WfcRules;
+            }
+
+            error = null;
+            return true;
         }
     }
 }

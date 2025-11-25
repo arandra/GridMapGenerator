@@ -15,4 +15,4 @@ MonoBehaviour:
   PipelineProfile: {fileID: 11400000, guid: 064339707f8193042a83d2a01a51e48d, type: 2}
   RootObjectName: GridMapRoot
   PreviewSize: {x: 16, y: 16}
-  TileSet: {fileID: 0}
+  TileSet: {fileID: 11400000, guid: 3f21d8c054885b243b5d0535e6fe1098, type: 2}

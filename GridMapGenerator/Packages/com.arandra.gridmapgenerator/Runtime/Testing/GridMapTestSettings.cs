@@ -14,6 +14,9 @@ namespace GridMapGenerator.Testing
     {
         [Header("Pipeline")]
         public GridPipelineProfile PipelineProfile;
+        [Tooltip("Generation 모듈과 연계할 타일 배정 규칙")]
+        public TileAssignmentRules TileRules;
+        public WfcTileRules WfcRules;
 
         [Tooltip("생성 결과를 배치할 루트 게임오브젝트 이름. 존재하지 않으면 자동 생성한다.")]
         public string RootObjectName = "GridMapRoot";

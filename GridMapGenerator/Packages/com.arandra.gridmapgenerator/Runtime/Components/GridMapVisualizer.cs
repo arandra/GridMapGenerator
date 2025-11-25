@@ -9,6 +9,8 @@ namespace GridMapGenerator.Components
     {
         public GridPipelineProfile PipelineProfile;
         public TileSetData TileSet;
+        public TileAssignmentRules TileRules;
+        public WfcTileRules WfcRules;
         public bool GenerateOnStart = true;
 
         private void Start()
@@ -23,7 +25,13 @@ namespace GridMapGenerator.Components
         {
             if (PipelineProfile == null || TileSet == null)
             {
-                Debug.LogWarning("GridMapVisualizer: PipelineProfile or TileSet is missing.");
+                Debug.LogWarning("GridMapVisualizer: PipelineProfile 또는 TileSet이 없습니다.");
+                return;
+            }
+
+            if (TileRules != null && !TileRules.TryValidateFor(PipelineProfile.GenerationModules, TileSet, out var ruleError))
+            {
+                Debug.LogError($"GridMapVisualizer: 타일 규칙 검증 실패 - {ruleError}");
                 return;
             }
 
@@ -33,7 +41,7 @@ namespace GridMapGenerator.Components
                 Destroy(child.gameObject);
             }
 
-            var context = PipelineProfile.Run();
+            var context = PipelineProfile.CreatePipeline(null, null, TileRules, TileSet).Run();
 
             foreach (var (coords, cell) in context.EnumerateCells())
             {

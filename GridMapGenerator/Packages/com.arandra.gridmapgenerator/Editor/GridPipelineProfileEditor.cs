@@ -14,6 +14,9 @@ namespace GridMapGenerator.Editor
         private SerializedProperty shapeModule;
         private SerializedProperty generationModules;
         private SerializedProperty flatTerrainScale;
+        private SerializedProperty minCorridorSize;
+        private SerializedProperty corridorMaxShiftPerStep;
+        private SerializedProperty wfcRules;
         private SerializedProperty constraintModules;
 
         private void OnEnable()
@@ -25,6 +28,9 @@ namespace GridMapGenerator.Editor
             shapeModule = serializedObject.FindProperty(nameof(GridPipelineProfile.ShapeModule));
             generationModules = serializedObject.FindProperty(nameof(GridPipelineProfile.GenerationModules));
             flatTerrainScale = serializedObject.FindProperty(nameof(GridPipelineProfile.FlatTerrainScale));
+            minCorridorSize = serializedObject.FindProperty(nameof(GridPipelineProfile.MinCorridorSize));
+            corridorMaxShiftPerStep = serializedObject.FindProperty(nameof(GridPipelineProfile.CorridorMaxShiftPerStep));
+            wfcRules = serializedObject.FindProperty(nameof(GridPipelineProfile.WfcRules));
             constraintModules = serializedObject.FindProperty(nameof(GridPipelineProfile.ConstraintModules));
         }
 
@@ -47,6 +53,17 @@ namespace GridMapGenerator.Editor
                 if (HasFlag(generationModules, GenerationModuleOption.FlatTerrain))
                 {
                     EditorGUILayout.PropertyField(flatTerrainScale, new GUIContent("Flat Terrain Scale"));
+                }
+
+                if (HasFlag(generationModules, GenerationModuleOption.ScrollingCorridor))
+                {
+                    EditorGUILayout.PropertyField(minCorridorSize, new GUIContent("Min Corridor Size (x=폭, y=유지 행)"));
+                    EditorGUILayout.PropertyField(corridorMaxShiftPerStep, new GUIContent("Max Shift Per Step"));
+                }
+
+                if (HasFlag(generationModules, GenerationModuleOption.Wfc))
+                {
+                    EditorGUILayout.PropertyField(wfcRules, new GUIContent("WFC Tile Rules"));
                 }
             }
 
