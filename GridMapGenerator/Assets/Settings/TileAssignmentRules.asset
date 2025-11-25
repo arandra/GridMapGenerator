@@ -12,4 +12,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4f4202b581f655745bbf4ab2bc62f123, type: 3}
   m_Name: TileAssignmentRules
   m_EditorClassIdentifier: GridMapGenerator::GridMapGenerator.Data.TileAssignmentRules
-  ModuleRules: []
+  EditorTileSet: {fileID: 11400000, guid: 3f21d8c054885b243b5d0535e6fe1098, type: 2}
+  ModuleRules:
+  - TargetModules: 8
+    Tiles:
+    - TypeId: block1
+      Weight: 1
+    - TypeId: block2
+      Weight: 1
+  ConditionalRules:
+  - RequireBlocked: 1
+    OverrideTypeId: block1
+    WeightMultiplier: 0
+  - RequireBlocked: 2
+    OverrideTypeId: block2
+    WeightMultiplier: 0

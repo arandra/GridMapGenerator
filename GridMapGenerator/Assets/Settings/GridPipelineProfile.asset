@@ -28,6 +28,9 @@ MonoBehaviour:
     ExitPoint: {x: 0, y: 0}
     Checkpoints: []
   ShapeModule: 0
-  GenerationModules: 7
+  GenerationModules: 8
   FlatTerrainScale: 0.1
-  ConstraintModules: 0
+  MinCorridorSize: {x: 5, y: 5}
+  CorridorMaxShiftPerStep: 1
+  WfcRules: {fileID: 0}
+  ConstraintModules: -1
