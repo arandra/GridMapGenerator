@@ -106,3 +106,4 @@ GridMapGenerator/[Ll]ogs/
 GridMapGenerator/[Uu]ser[Ss]ettings/
 GridMapGenerator/*.log
 
+GridMapGenerator/.idea
