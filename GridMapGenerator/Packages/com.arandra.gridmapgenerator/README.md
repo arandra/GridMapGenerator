@@ -34,7 +34,7 @@ GridContext context = pipeline.Run();
   - `FlatTerrainModule` — Perlin 노이즈로 TerrainNoise 설정.
   - `BasicUsageModule` — Usage.IsBlocked를 전부 false로 초기화.
   - `SimpleVariantModule` — Detail Variant/Noise/Tags(`default`) 채우기.
-  - `ScrollingCorridorModule` — 세로 스크롤 방향으로 최소 통로 폭을 보장하며 양끝 막힘 폭을 변동(통로 태그 `corridor` 추가).
+  - `ScrollingCorridorModule` — 세로 스크롤 방향으로 최소 통로 폭을 보장하며 양끝 막힘 폭/폭 비율/곡률을 제어(통로 태그 `corridor` 추가).
 - `TileAssignmentModule` — `TileAssignmentRules`+`TileSetData` 기반으로 비어 있는 `Terrain.TypeId`를 가중치로 배정.
   - `TileAssignmentRules`는 모듈 마스크별 규칙 + 조건부 규칙(Usage.IsBlocked)을 지원합니다. 조건부 규칙의 Override TypeId는 에디터에서 TileSetData 기반 팝업으로 선택할 수 있습니다.
 - `WfcGenerationModule` — `WfcTileRules` 인접 규칙을 따라 Collapse, 모순 시 조커 타일로 해소.

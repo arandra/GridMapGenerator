@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: GridMapGenerator::GridMapGenerator.Core.GridPipelineProfile
   GridMeta:
     Width: 16
-    Height: 16
+    Height: 0
     CellSize: 1
     Origin: {x: 0, y: 0, z: 0}
     CoordinatePlane: 1
@@ -32,5 +32,13 @@ MonoBehaviour:
   FlatTerrainScale: 0.1
   MinCorridorSize: {x: 5, y: 5}
   CorridorMaxShiftPerStep: 1
+  LeftBlockedRange: {x: 1, y: 5}
+  RightBlockedRange: {x: 0, y: 0}
+  LockSides: 1
+  MinMaxWidthRatio: {x: 0.2, y: 0.6}
+  WidthChangeProbability: 0.25
+  WidthSmoothing: 0.5
+  WidthJitterPercent: 0.1
+  CurvatureLevel: 0.3
   WfcRules: {fileID: 0}
   ConstraintModules: -1

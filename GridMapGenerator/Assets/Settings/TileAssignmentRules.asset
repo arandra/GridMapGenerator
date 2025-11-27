@@ -26,4 +26,7 @@ MonoBehaviour:
     WeightMultiplier: 0
   - RequireBlocked: 2
     OverrideTypeId: block2
-    WeightMultiplier: 0
+    WeightMultiplier: 3
+  - RequireBlocked: 2
+    OverrideTypeId: block3
+    WeightMultiplier: 1

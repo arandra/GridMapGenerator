@@ -63,7 +63,21 @@ namespace GridMapGenerator.Editor
         {
             EditorGUILayout.LabelField("Preview Options", EditorStyles.boldLabel);
             settings.RootObjectName = EditorGUILayout.TextField("Root Object Name", settings.RootObjectName);
-            settings.PreviewSize = EditorGUILayout.Vector2IntField("Preview Size (for infinite)", settings.PreviewSize);
+
+            bool hasProfile = settings.PipelineProfile != null;
+            bool isInfinite = hasProfile && IsInfiniteGrid(settings.PipelineProfile);
+            using (new EditorGUI.DisabledScope(hasProfile && !isInfinite))
+            {
+                settings.PreviewSize = EditorGUILayout.Vector2IntField("Preview Size (for infinite)", settings.PreviewSize);
+            }
+
+            if (hasProfile && !isInfinite)
+            {
+                var meta = settings.PipelineProfile.GridMeta;
+                EditorGUILayout.HelpBox(
+                    $"Pipeline Profile의 GridMeta가 {meta.Width}x{meta.Height}로 설정되어 있어 Preview Size가 적용되지 않습니다. 폭/높이를 0으로 두면 Preview Size가 사용됩니다.",
+                    MessageType.Info);
+            }
 
             if (settings.PipelineProfile == null)
             {
@@ -159,16 +173,21 @@ namespace GridMapGenerator.Editor
                 seedsOverride.LocalSeed = seed;
             }
 
-            Vector2Int previewSize = settings.PreviewSize;
-            if (previewSize.x <= 0 || previewSize.y <= 0)
+            Vector2Int? previewSizeOverride = null;
+            if (IsInfiniteGrid(settings.PipelineProfile))
             {
-                EditorUtility.DisplayDialog("프리뷰 크기 필요", "Preview Size는 1 이상이어야 합니다.", "확인");
-                return;
+                if (!TryGetPreviewSize(out var previewSize, out var previewError))
+                {
+                    EditorUtility.DisplayDialog("프리뷰 크기 필요", previewError, "확인");
+                    return;
+                }
+
+                previewSizeOverride = previewSize;
             }
 
             var pipeline = settings.PipelineProfile.CreatePipeline(
                 seedsOverride,
-                previewSize,
+                previewSizeOverride,
                 settings.TileRules,
                 settings.TileSet);
             var context = pipeline.Run();
@@ -319,6 +338,30 @@ namespace GridMapGenerator.Editor
             if (settings.WfcRules != null)
             {
                 settings.PipelineProfile.WfcRules = settings.WfcRules;
+            }
+
+            error = null;
+            return true;
+        }
+
+        private static bool IsInfiniteGrid(GridPipelineProfile profile)
+        {
+            if (profile == null)
+            {
+                return false;
+            }
+
+            var meta = profile.GridMeta;
+            return meta.Width <= 0 || meta.Height <= 0;
+        }
+
+        private bool TryGetPreviewSize(out Vector2Int previewSize, out string error)
+        {
+            previewSize = settings.PreviewSize;
+            if (previewSize.x <= 0 || previewSize.y <= 0)
+            {
+                error = "Preview Size는 1 이상이어야 합니다.";
+                return false;
             }
 
             error = null;

@@ -74,6 +74,35 @@ namespace GridMapGenerator.Core
         [Min(0)]
         public int CorridorMaxShiftPerStep = 1;
 
+        [Header("Scrolling Corridor Advanced")]
+        [Tooltip("좌측 막힘 최소/최대 폭")]
+        public Vector2Int LeftBlockedRange = new(0, 0);
+
+        [Tooltip("우측 막힘 최소/최대 폭")]
+        public Vector2Int RightBlockedRange = new(0, 0);
+
+        [Tooltip("좌우 막힘 폭을 동일하게 적용")]
+        public bool LockSides = true;
+
+        [Tooltip("통로 최소/최대 폭 비율(그리드 폭 기준 0~1)")]
+        public Vector2 MinMaxWidthRatio = new(0.2f, 0.6f);
+
+        [Tooltip("행마다 폭을 변경할 확률(0~1)")]
+        [Range(0f, 1f)]
+        public float WidthChangeProbability = 0.25f;
+
+        [Tooltip("폭 변경을 서서히 적용하는 정도(0=즉시, 1=매우 완만)")]
+        [Range(0f, 1f)]
+        public float WidthSmoothing = 0.5f;
+
+        [Tooltip("폭 변경 시 추가되는 랜덤 변동(비율)")]
+        [Range(0f, 1f)]
+        public float WidthJitterPercent = 0.1f;
+
+        [Tooltip("곡률 수준(0=직선, 1=많이 휨)")]
+        [Range(0f, 1f)]
+        public float CurvatureLevel = 0.3f;
+
         [Header("WFC")]
         public WfcTileRules WfcRules;
 
@@ -156,6 +185,14 @@ namespace GridMapGenerator.Core
                     Mathf.Max(1, MinCorridorSize.x),
                     Mathf.Max(1, MinCorridorSize.y),
                     Mathf.Max(0, CorridorMaxShiftPerStep),
+                    LeftBlockedRange,
+                    RightBlockedRange,
+                    LockSides,
+                    MinMaxWidthRatio,
+                    Mathf.Clamp01(WidthChangeProbability),
+                    Mathf.Clamp01(WidthSmoothing),
+                    Mathf.Clamp01(WidthJitterPercent),
+                    Mathf.Clamp01(CurvatureLevel),
                     seedsToUse));
             }
 
