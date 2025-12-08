@@ -14,16 +14,15 @@ namespace GridMapGenerator.Editor
         private SerializedProperty shapeModule;
         private SerializedProperty generationModules;
         private SerializedProperty flatTerrainScale;
-        private SerializedProperty minCorridorSize;
-        private SerializedProperty corridorMaxShiftPerStep;
-        private SerializedProperty leftBlockedRange;
-        private SerializedProperty rightBlockedRange;
-        private SerializedProperty lockSides;
-        private SerializedProperty minMaxWidthRatio;
-        private SerializedProperty widthChangeProbability;
-        private SerializedProperty widthSmoothing;
-        private SerializedProperty widthJitterPercent;
-        private SerializedProperty curvatureLevel;
+        private SerializedProperty coreObjectSize;
+        private SerializedProperty minimumCoreWidth;
+        private SerializedProperty minimumHoldRows;
+        private SerializedProperty maxLateralStep;
+        private SerializedProperty symmetricMarginRange;
+        private SerializedProperty marginChangeLimit;
+        private SerializedProperty difficulty;
+        private SerializedProperty initialCenterOffset;
+        private SerializedProperty scrollingCorridorDebugLog;
         private SerializedProperty wfcRules;
         private SerializedProperty constraintModules;
 
@@ -36,16 +35,15 @@ namespace GridMapGenerator.Editor
             shapeModule = serializedObject.FindProperty(nameof(GridPipelineProfile.ShapeModule));
             generationModules = serializedObject.FindProperty(nameof(GridPipelineProfile.GenerationModules));
             flatTerrainScale = serializedObject.FindProperty(nameof(GridPipelineProfile.FlatTerrainScale));
-            minCorridorSize = serializedObject.FindProperty(nameof(GridPipelineProfile.MinCorridorSize));
-            corridorMaxShiftPerStep = serializedObject.FindProperty(nameof(GridPipelineProfile.CorridorMaxShiftPerStep));
-            leftBlockedRange = serializedObject.FindProperty(nameof(GridPipelineProfile.LeftBlockedRange));
-            rightBlockedRange = serializedObject.FindProperty(nameof(GridPipelineProfile.RightBlockedRange));
-            lockSides = serializedObject.FindProperty(nameof(GridPipelineProfile.LockSides));
-            minMaxWidthRatio = serializedObject.FindProperty(nameof(GridPipelineProfile.MinMaxWidthRatio));
-            widthChangeProbability = serializedObject.FindProperty(nameof(GridPipelineProfile.WidthChangeProbability));
-            widthSmoothing = serializedObject.FindProperty(nameof(GridPipelineProfile.WidthSmoothing));
-            widthJitterPercent = serializedObject.FindProperty(nameof(GridPipelineProfile.WidthJitterPercent));
-            curvatureLevel = serializedObject.FindProperty(nameof(GridPipelineProfile.CurvatureLevel));
+            coreObjectSize = serializedObject.FindProperty(nameof(GridPipelineProfile.CoreObjectSize));
+            minimumCoreWidth = serializedObject.FindProperty(nameof(GridPipelineProfile.MinimumCoreWidth));
+            minimumHoldRows = serializedObject.FindProperty(nameof(GridPipelineProfile.MinimumHoldRows));
+            maxLateralStep = serializedObject.FindProperty(nameof(GridPipelineProfile.MaxLateralStep));
+            symmetricMarginRange = serializedObject.FindProperty(nameof(GridPipelineProfile.SymmetricMarginRange));
+            marginChangeLimit = serializedObject.FindProperty(nameof(GridPipelineProfile.MarginChangeLimit));
+            difficulty = serializedObject.FindProperty(nameof(GridPipelineProfile.Difficulty));
+            initialCenterOffset = serializedObject.FindProperty(nameof(GridPipelineProfile.InitialCenterOffset));
+            scrollingCorridorDebugLog = serializedObject.FindProperty(nameof(GridPipelineProfile.ScrollingCorridorDebugLog));
             wfcRules = serializedObject.FindProperty(nameof(GridPipelineProfile.WfcRules));
             constraintModules = serializedObject.FindProperty(nameof(GridPipelineProfile.ConstraintModules));
         }
@@ -73,20 +71,17 @@ namespace GridMapGenerator.Editor
 
                 if (HasFlag(generationModules, GenerationModuleOption.ScrollingCorridor))
                 {
-                    EditorGUILayout.PropertyField(minCorridorSize, new GUIContent("Min Corridor Size (x=폭, y=유지 행)"));
-                    EditorGUILayout.PropertyField(corridorMaxShiftPerStep, new GUIContent("Max Shift Per Step"));
-                    EditorGUILayout.PropertyField(leftBlockedRange, new GUIContent("Left Blocked Range"));
-                    EditorGUILayout.PropertyField(lockSides, new GUIContent("Lock Sides"));
-                    using (new EditorGUI.DisabledScope(lockSides.boolValue))
-                    {
-                        EditorGUILayout.PropertyField(rightBlockedRange, new GUIContent("Right Blocked Range"));
-                    }
-
-                    EditorGUILayout.PropertyField(minMaxWidthRatio, new GUIContent("Min/Max Width Ratio"));
-                    EditorGUILayout.PropertyField(widthChangeProbability, new GUIContent("Width Change Probability"));
-                    EditorGUILayout.PropertyField(widthJitterPercent, new GUIContent("Width Jitter Percent"));
-                    EditorGUILayout.PropertyField(widthSmoothing, new GUIContent("Width Smoothing"));
-                    EditorGUILayout.PropertyField(curvatureLevel, new GUIContent("Curvature Level"));
+                    EditorGUILayout.PropertyField(coreObjectSize, new GUIContent("Core Object Size (N=폭, M=높이)"));
+                    EditorGUILayout.PropertyField(minimumCoreWidth, new GUIContent("Minimum Core Width"));
+                    EditorGUILayout.PropertyField(minimumHoldRows, new GUIContent("Minimum Hold Rows"));
+                    EditorGUILayout.PropertyField(maxLateralStep, new GUIContent("Max Lateral Step (0~1)"));
+                    EditorGUILayout.PropertyField(
+                        symmetricMarginRange,
+                        new GUIContent("Symmetric Margin Range", "대칭 여유 폭 (x=min, y=max)"));
+                    EditorGUILayout.PropertyField(marginChangeLimit, new GUIContent("Margin Change Limit"));
+                    EditorGUILayout.PropertyField(difficulty, new GUIContent("Difficulty (0~1)"));
+                    EditorGUILayout.PropertyField(initialCenterOffset, new GUIContent("Initial Center Offset"));
+                    EditorGUILayout.PropertyField(scrollingCorridorDebugLog, new GUIContent("Debug Log (2-pass)"));
                 }
 
                 if (HasFlag(generationModules, GenerationModuleOption.Wfc))

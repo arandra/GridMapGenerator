@@ -67,41 +67,37 @@ namespace GridMapGenerator.Core
         public float FlatTerrainScale = 0.1f;
 
         [Header("Scrolling Corridor")]
-        [Tooltip("통로 최소 폭(x)과 위치 유지 행 수(y)")]
-        public Vector2Int MinCorridorSize = new(3, 2);
+        [Tooltip("통과해야 할 물체 크기(N=폭, M=높이)")]
+        public Vector2Int CoreObjectSize = new(3, 2);
 
-        [Tooltip("통로 시작 위치를 한 번에 이동시킬 수 있는 최대 칸 수")]
+        [Tooltip("코어(필수) 통로 최소 폭")]
+        [Min(1)]
+        public int MinimumCoreWidth = 3;
+
+        [Tooltip("코어 위치를 최소 유지할 행 수")]
+        [Min(1)]
+        public int MinimumHoldRows = 2;
+
+        [Tooltip("행당 좌우 최대 이동 칸수(45도 제한용, 0 또는 1)")]
+        [Range(0, 1)]
+        public int MaxLateralStep = 1;
+
+        [Tooltip("코어 좌우에 붙는 대칭 여유 폭의 최소/최대 (x=min, y=max)")]
+        public Vector2Int SymmetricMarginRange = new(0, 1);
+
+        [Tooltip("행마다 여유 폭이 변할 수 있는 최대 증감량")]
         [Min(0)]
-        public int CorridorMaxShiftPerStep = 1;
+        public int MarginChangeLimit = 1;
 
-        [Header("Scrolling Corridor Advanced")]
-        [Tooltip("좌측 막힘 최소/최대 폭")]
-        public Vector2Int LeftBlockedRange = new(0, 0);
-
-        [Tooltip("우측 막힘 최소/최대 폭")]
-        public Vector2Int RightBlockedRange = new(0, 0);
-
-        [Tooltip("좌우 막힘 폭을 동일하게 적용")]
-        public bool LockSides = true;
-
-        [Tooltip("통로 최소/최대 폭 비율(그리드 폭 기준 0~1)")]
-        public Vector2 MinMaxWidthRatio = new(0.2f, 0.6f);
-
-        [Tooltip("행마다 폭을 변경할 확률(0~1)")]
+        [Tooltip("코스 난이도(0=직선, 1=자주 굽이침)")]
         [Range(0f, 1f)]
-        public float WidthChangeProbability = 0.25f;
+        public float Difficulty = 0.3f;
 
-        [Tooltip("폭 변경을 서서히 적용하는 정도(0=즉시, 1=매우 완만)")]
-        [Range(0f, 1f)]
-        public float WidthSmoothing = 0.5f;
+        [Tooltip("시작 코어 위치 오프셋(그리드 중앙 기준 +우측/-좌측)")]
+        public int InitialCenterOffset = 0;
 
-        [Tooltip("폭 변경 시 추가되는 랜덤 변동(비율)")]
-        [Range(0f, 1f)]
-        public float WidthJitterPercent = 0.1f;
-
-        [Tooltip("곡률 수준(0=직선, 1=많이 휨)")]
-        [Range(0f, 1f)]
-        public float CurvatureLevel = 0.3f;
+        [Tooltip("Scrolling Corridor 디버그 로그 출력(코어/마진 2패스)")]
+        public bool ScrollingCorridorDebugLog = false;
 
         [Header("WFC")]
         public WfcTileRules WfcRules;
@@ -182,17 +178,15 @@ namespace GridMapGenerator.Core
             if (GenerationModules.HasFlag(GenerationModuleOption.ScrollingCorridor))
             {
                 pipeline.RegisterModule(new ScrollingCorridorModule(
-                    Mathf.Max(1, MinCorridorSize.x),
-                    Mathf.Max(1, MinCorridorSize.y),
-                    Mathf.Max(0, CorridorMaxShiftPerStep),
-                    LeftBlockedRange,
-                    RightBlockedRange,
-                    LockSides,
-                    MinMaxWidthRatio,
-                    Mathf.Clamp01(WidthChangeProbability),
-                    Mathf.Clamp01(WidthSmoothing),
-                    Mathf.Clamp01(WidthJitterPercent),
-                    Mathf.Clamp01(CurvatureLevel),
+                    CoreObjectSize,
+                    Mathf.Max(1, MinimumCoreWidth),
+                    Mathf.Max(1, MinimumHoldRows),
+                    Mathf.Clamp(MaxLateralStep, 0, 1),
+                    SymmetricMarginRange,
+                    Mathf.Max(0, MarginChangeLimit),
+                    Mathf.Clamp01(Difficulty),
+                    InitialCenterOffset,
+                    ScrollingCorridorDebugLog,
                     seedsToUse));
             }
 
