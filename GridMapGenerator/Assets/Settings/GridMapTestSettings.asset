@@ -16,5 +16,5 @@ MonoBehaviour:
   TileRules: {fileID: 11400000, guid: 4064221d226613f4aae2b1df6dc1464b, type: 2}
   WfcRules: {fileID: 0}
   RootObjectName: GridMapRoot
-  PreviewSize: {x: 16, y: 64}
+  PreviewSize: {x: 16, y: 128}
   TileSet: {fileID: 11400000, guid: 3f21d8c054885b243b5d0535e6fe1098, type: 2}

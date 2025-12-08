@@ -30,15 +30,14 @@ MonoBehaviour:
   ShapeModule: 0
   GenerationModules: 8
   FlatTerrainScale: 0.1
-  MinCorridorSize: {x: 5, y: 5}
-  CorridorMaxShiftPerStep: 1
-  LeftBlockedRange: {x: 1, y: 5}
-  RightBlockedRange: {x: 0, y: 0}
-  LockSides: 1
-  MinMaxWidthRatio: {x: 0.2, y: 0.6}
-  WidthChangeProbability: 0.25
-  WidthSmoothing: 0.5
-  WidthJitterPercent: 0.1
-  CurvatureLevel: 0.3
+  CoreObjectSize: {x: 3, y: 6}
+  MinimumCoreWidth: 3
+  MinimumHoldRows: 3
+  MaxLateralStep: 1
+  SymmetricMarginRange: {x: 1, y: 3}
+  MarginChangeLimit: 1
+  Difficulty: 0.922
+  InitialCenterOffset: 0
+  ScrollingCorridorDebugLog: 1
   WfcRules: {fileID: 0}
   ConstraintModules: -1
