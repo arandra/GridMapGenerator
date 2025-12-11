@@ -24,6 +24,11 @@ namespace GridMapGenerator.Editor
         private SerializedProperty initialCenterOffset;
         private SerializedProperty scrollingCorridorDebugLog;
         private SerializedProperty wfcRules;
+        private SerializedProperty wfcRespectUsageBlocked;
+        private SerializedProperty wfcRestartOnFailure;
+        private SerializedProperty wfcMaxRetries;
+        private SerializedProperty wfcUseNewSeedOnRetry;
+        private SerializedProperty wfcVerboseLogging;
         private SerializedProperty constraintModules;
 
         private void OnEnable()
@@ -45,6 +50,11 @@ namespace GridMapGenerator.Editor
             initialCenterOffset = serializedObject.FindProperty(nameof(GridPipelineProfile.InitialCenterOffset));
             scrollingCorridorDebugLog = serializedObject.FindProperty(nameof(GridPipelineProfile.ScrollingCorridorDebugLog));
             wfcRules = serializedObject.FindProperty(nameof(GridPipelineProfile.WfcRules));
+            wfcRespectUsageBlocked = serializedObject.FindProperty(nameof(GridPipelineProfile.WfcRespectUsageBlocked));
+            wfcRestartOnFailure = serializedObject.FindProperty(nameof(GridPipelineProfile.WfcRestartOnFailure));
+            wfcMaxRetries = serializedObject.FindProperty(nameof(GridPipelineProfile.WfcMaxRetries));
+            wfcUseNewSeedOnRetry = serializedObject.FindProperty(nameof(GridPipelineProfile.WfcUseNewSeedOnRetry));
+            wfcVerboseLogging = serializedObject.FindProperty(nameof(GridPipelineProfile.WfcVerboseLogging));
             constraintModules = serializedObject.FindProperty(nameof(GridPipelineProfile.ConstraintModules));
         }
 
@@ -87,7 +97,23 @@ namespace GridMapGenerator.Editor
                 if (HasFlag(generationModules, GenerationModuleOption.Wfc))
                 {
                     EditorGUILayout.PropertyField(wfcRules, new GUIContent("WFC Tile Rules"));
+                    EditorGUILayout.PropertyField(
+                        wfcRespectUsageBlocked,
+                        new GUIContent("Respect Usage.IsBlocked", "Usage.IsBlocked 값에 따라 WFC 후보를 분리합니다."));
+                    EditorGUILayout.PropertyField(
+                        wfcRestartOnFailure,
+                        new GUIContent("Restart On Failure", "실패 시 초기 상태로 되돌아가 재시도합니다."));
+                    using (new EditorGUI.IndentLevelScope())
+                    {
+                        EditorGUILayout.PropertyField(wfcMaxRetries, new GUIContent("Max Retries"));
+                    EditorGUILayout.PropertyField(
+                        wfcUseNewSeedOnRetry,
+                        new GUIContent("Use New Seed On Retry", "재시도마다 시드를 증가시켜 다른 결과를 탐색합니다."));
+                    EditorGUILayout.PropertyField(
+                        wfcVerboseLogging,
+                        new GUIContent("Verbose Logging", "WFC 후보 변화 히스토리를 로그로 출력합니다."));
                 }
+            }
             }
 
             EditorGUILayout.PropertyField(constraintModules, new GUIContent("Constraint Modules"));

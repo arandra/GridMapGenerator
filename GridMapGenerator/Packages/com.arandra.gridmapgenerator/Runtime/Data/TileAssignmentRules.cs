@@ -67,6 +67,68 @@ namespace GridMapGenerator.Data
 
             return new ConditionalWeightedStrategy(rule, ConditionalRules, tileSet);
         }
+
+        /// <summary>
+        /// TileAssignmentRules와 ConditionalRules를 바탕으로 TypeId의 막힘 여부 후보 집합을 계산한다.
+        /// 기본 규칙에 포함된 타입은 양쪽(Blocked/Unblocked) 모두에 넣고,
+        /// ConditionalRule의 RequireBlocked에 따라 추가로 분류한다.
+        /// </summary>
+        public void BuildBlockedTypeSets(
+            GenerationModuleOption activeModules,
+            TileSetData tileSet,
+            out HashSet<string> blocked,
+            out HashSet<string> unblocked)
+        {
+            blocked = new HashSet<string>();
+            unblocked = new HashSet<string>();
+
+            if (tileSet == null)
+            {
+                return;
+            }
+
+            if (!TrySelectRule(activeModules, tileSet, out var rule, out _))
+            {
+                return;
+            }
+
+            var validTypeIds = new HashSet<string>(tileSet.Tiles
+                .Where(t => t != null && !string.IsNullOrWhiteSpace(t.TypeId) && t.Prefab != null)
+                .Select(t => t.TypeId));
+
+            foreach (var option in rule.GetUsableTiles(tileSet))
+            {
+                blocked.Add(option.TypeId);
+                unblocked.Add(option.TypeId);
+            }
+
+            if (ConditionalRules == null || ConditionalRules.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var cond in ConditionalRules)
+            {
+                if (cond == null) continue;
+                if (string.IsNullOrWhiteSpace(cond.OverrideTypeId)) continue;
+                if (!validTypeIds.Contains(cond.OverrideTypeId)) continue;
+
+                switch (cond.RequireBlocked)
+                {
+                    case ConditionalTileRule.BlockRequirement.Blocked:
+                        blocked.Add(cond.OverrideTypeId);
+                        break;
+                    case ConditionalTileRule.BlockRequirement.Unblocked:
+                        unblocked.Add(cond.OverrideTypeId);
+                        break;
+                    case ConditionalTileRule.BlockRequirement.Any:
+                    default:
+                        blocked.Add(cond.OverrideTypeId);
+                        unblocked.Add(cond.OverrideTypeId);
+                        break;
+                }
+            }
+        }
     }
 
     [Serializable]

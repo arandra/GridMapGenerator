@@ -14,11 +14,34 @@ namespace GridMapGenerator.Modules
     {
         private readonly WfcTileRules rules;
         private readonly Seeds seeds;
+        private readonly bool respectUsageBlocked;
+        private readonly HashSet<string> blockedTypeIds;
+        private readonly HashSet<string> unblockedTypeIds;
+        private readonly bool restartOnFailure;
+        private readonly int maxRetries;
+        private readonly bool useNewSeedOnRetry;
+        private readonly bool verboseLogging;
 
-        public WfcGenerationModule(WfcTileRules rules, Seeds seeds)
+        public WfcGenerationModule(
+            WfcTileRules rules,
+            Seeds seeds,
+            bool respectUsageBlocked = false,
+            HashSet<string> blockedTypeIds = null,
+            HashSet<string> unblockedTypeIds = null,
+            bool restartOnFailure = false,
+            int maxRetries = 0,
+            bool useNewSeedOnRetry = true,
+            bool verboseLogging = false)
         {
             this.rules = rules;
             this.seeds = seeds;
+            this.respectUsageBlocked = respectUsageBlocked;
+            this.blockedTypeIds = blockedTypeIds;
+            this.unblockedTypeIds = unblockedTypeIds;
+            this.restartOnFailure = restartOnFailure;
+            this.maxRetries = Mathf.Max(0, maxRetries);
+            this.useNewSeedOnRetry = useNewSeedOnRetry;
+            this.verboseLogging = verboseLogging;
         }
 
         public GridModuleStage Stage => GridModuleStage.Generation;
@@ -46,33 +69,119 @@ namespace GridMapGenerator.Modules
                 return;
             }
 
-            var random = seeds.CreateGlobalRandom();
-            var candidates = CreateInitialCandidates(context, normalTiles, joker);
+            var initialTypes = SnapshotTypes(context);
+            var attempts = restartOnFailure ? Mathf.Max(1, maxRetries + 1) : 1;
+            FailureInfo lastFailure = default;
+            var history = verboseLogging ? new List<string>(256) : null;
+
+            for (int attempt = 0; attempt < attempts; attempt++)
+            {
+                RestoreTypes(context, initialTypes);
+
+                var randomSeed = useNewSeedOnRetry ? seeds.GlobalSeed + attempt : seeds.GlobalSeed;
+                var random = new System.Random(randomSeed);
+                var candidates = CreateInitialCandidates(context, normalTiles, joker);
+
+                history?.Clear();
+
+                if (RunOnce(context, candidates, random, joker, history, out lastFailure))
+                {
+                    if (verboseLogging && history != null && history.Count > 0)
+                    {
+                        Debug.Log(string.Join("\n", history));
+                    }
+                    return; // 성공
+                }
+
+                if (!restartOnFailure)
+                {
+                    break;
+                }
+
+                if (attempt < attempts - 1)
+                {
+                    Debug.LogWarning($"WFC 실패 재시도 {attempt + 1}/{attempts - 1}: {FormatFailure(lastFailure, attempt, randomSeed)}\n{FormatHistory(history)}");
+                }
+            }
+
+            Debug.LogError($"WFC 실패: {FormatFailure(lastFailure, attempts - 1, useNewSeedOnRetry ? seeds.GlobalSeed + attempts - 1 : seeds.GlobalSeed)}\n{FormatHistory(history)}");
+        }
+
+        private bool RunOnce(
+            GridContext context,
+            List<WfcTileRule>[] candidates,
+            System.Random random,
+            WfcTileRule joker,
+            List<string> history,
+            out FailureInfo failure)
+        {
+            failure = default;
 
             while (true)
             {
                 var cellIndex = FindLowestEntropyCell(candidates);
                 if (cellIndex < 0)
                 {
-                    break; // 모든 셀 결정됨
+                    return true; // 모든 셀 결정됨
                 }
 
                 var candidateList = candidates[cellIndex];
+                if (candidateList == null || candidateList.Count == 0)
+                {
+                    failure = new FailureInfo
+                    {
+                        CellIndex = cellIndex,
+                        SelectedCellIndex = cellIndex,
+                        SelectedCoordinates = ToCoords(context, cellIndex),
+                        SelectedIsBlocked = context[cellIndex].Usage.IsBlocked,
+                        Message = "후보가 없습니다.",
+                        NeighborType = string.Empty,
+                        ChosenType = string.Empty,
+                        Coordinates = ToCoords(context, cellIndex),
+                        CandidateCountBeforeRemoval = 0
+                    };
+                    return false;
+                }
+
                 var pick = Collapse(cellIndex, candidateList, random, joker);
-                ApplyChoice(context, candidates, cellIndex, pick, joker);
+                history?.Add($"선택 {ToCoords(context, cellIndex)}(blocked:{context[cellIndex].Usage.IsBlocked}) => {pick.TypeId}, 후보:{string.Join(",", candidateList.Select(c => c.TypeId))}");
+
+                if (!TryApplyChoice(context, candidates, cellIndex, pick, joker, history, out failure))
+                {
+                    return false;
+                }
             }
         }
 
-        private static List<WfcTileRule>[] CreateInitialCandidates(GridContext context, List<WfcTileRule> normalTiles, WfcTileRule joker)
+        private List<WfcTileRule>[] CreateInitialCandidates(GridContext context, List<WfcTileRule> normalTiles, WfcTileRule joker)
         {
+            List<WfcTileRule> blockedPool = null;
+            List<WfcTileRule> unblockedPool = null;
+
+            if (respectUsageBlocked)
+            {
+                blockedPool = normalTiles.Where(t => IsAllowedForBlocked(t.TypeId)).ToList();
+                unblockedPool = normalTiles.Where(t => IsAllowedForUnblocked(t.TypeId)).ToList();
+
+                if (blockedPool.Count == 0) blockedPool = normalTiles;
+                if (unblockedPool.Count == 0) unblockedPool = normalTiles;
+            }
+
             var all = new List<WfcTileRule>[context.CellCount];
             for (int i = 0; i < context.CellCount; i++)
             {
-                // 초깃값: 일반 타일이 우선, 없으면 조커만
                 var list = new List<WfcTileRule>();
-                if (normalTiles.Count > 0)
+
+                var source = normalTiles;
+                if (respectUsageBlocked)
                 {
-                    list.AddRange(normalTiles);
+                    var isBlocked = context[i].Usage.IsBlocked;
+                    source = isBlocked ? blockedPool : unblockedPool;
+                }
+
+                if (source.Count > 0)
+                {
+                    list.AddRange(source);
                 }
                 else if (joker != null)
                 {
@@ -92,6 +201,11 @@ namespace GridMapGenerator.Modules
 
             for (int i = 0; i < candidates.Length; i++)
             {
+                if (candidates[i] == null || candidates[i].Count == 0)
+                {
+                    continue;
+                }
+
                 var count = candidates[i].Count;
                 if (count <= 1)
                 {
@@ -134,13 +248,17 @@ namespace GridMapGenerator.Modules
             return pool.Last();
         }
 
-        private void ApplyChoice(
+        private bool TryApplyChoice(
             GridContext context,
             List<WfcTileRule>[] candidates,
             int cellIndex,
             WfcTileRule choice,
-            WfcTileRule joker)
+            WfcTileRule joker,
+            List<string> history,
+            out FailureInfo failure)
         {
+            failure = default;
+
             var width = context.Meta.Width;
             int x = cellIndex % width;
             int y = cellIndex / width;
@@ -155,8 +273,19 @@ namespace GridMapGenerator.Modules
             {
                 var idx = ny * width + nx;
                 var list = candidates[idx];
+                if (list == null || list.Count == 0)
+                {
+                    continue;
+                }
 
+                var beforeCount = list.Count;
                 bool removed = list.RemoveAll(rule => !choice.AllowsNeighbor(rule.TypeId)) > 0;
+                if (removed && history != null)
+                {
+                    var beforeTypes = string.Join(",", list.Select(r => r.TypeId));
+                    history.Add($"전파 {ToCoords(context, cellIndex)}->{(nx, ny)} removeNotAllowed:{choice.TypeId} beforeCount:{beforeCount} afterCount:{list.Count} after:{beforeTypes}");
+                }
+
                 if (list.Count == 0)
                 {
                     // 모순 해소: 조커만 남김
@@ -166,12 +295,26 @@ namespace GridMapGenerator.Modules
                     }
                     else
                     {
-                        Debug.LogError($"WFC: ({nx},{ny})에서 후보가 사라졌고 조커가 없습니다.");
+                        failure = new FailureInfo
+                        {
+                            CellIndex = idx,
+                            SelectedCellIndex = cellIndex,
+                            SelectedCoordinates = new Vector2Int(x, y),
+                            SelectedIsBlocked = context[cellIndex].Usage.IsBlocked,
+                            Message = $"이웃 {choice.TypeId} 제약으로 후보가 모두 제거됨",
+                            NeighborType = choice.TypeId,
+                            ChosenType = choice.TypeId,
+                            Coordinates = new Vector2Int(nx, ny),
+                            CandidateCountBeforeRemoval = beforeCount
+                        };
+                        return false;
                     }
                 }
 
                 // 조커만 남았을 때는 다음 루프에서 우선적으로 선택되도록 한다(엔트로피가 1이므로 건너뜀)
             }
+
+            return true;
         }
 
         private static IEnumerable<(int x, int y)> GetNeighbors(GridContext context, int x, int y)
@@ -180,6 +323,87 @@ namespace GridMapGenerator.Modules
             if (x < context.Meta.Width - 1) yield return (x + 1, y);
             if (y > 0) yield return (x, y - 1);
             if (y < context.Meta.Height - 1) yield return (x, y + 1);
+        }
+
+        private static Vector2Int ToCoords(GridContext context, int index)
+        {
+            var width = context.Meta.Width;
+            int x = index % width;
+            int y = index / width;
+            return new Vector2Int(x, y);
+        }
+
+        private static string[] SnapshotTypes(GridContext context)
+        {
+            var snapshot = new string[context.CellCount];
+            for (int i = 0; i < context.CellCount; i++)
+            {
+                snapshot[i] = context[i].Terrain.TypeId;
+            }
+            return snapshot;
+        }
+
+        private static void RestoreTypes(GridContext context, string[] snapshot)
+        {
+            if (snapshot == null) return;
+            for (int i = 0; i < context.CellCount && i < snapshot.Length; i++)
+            {
+                context[i].Terrain.TypeId = snapshot[i];
+            }
+        }
+
+        private static string FormatFailure(FailureInfo failure, int attempt, int seed)
+        {
+            var coordText = failure.Coordinates == Vector2Int.zero && failure.CellIndex < 0
+                ? "알 수 없음"
+                : $"({failure.Coordinates.x},{failure.Coordinates.y})";
+            var selectedText = failure.SelectedCoordinates == Vector2Int.zero && failure.SelectedCellIndex < 0
+                ? coordText
+                : $"({failure.SelectedCoordinates.x},{failure.SelectedCoordinates.y})";
+
+            var detail = $"시드:{seed}, 시도:{attempt + 1}, 결정셀:{selectedText}, 결정셀Blocked:{failure.SelectedIsBlocked}, 영향셀:{coordText}, 메시지:{failure.Message}";
+            if (!string.IsNullOrWhiteSpace(failure.ChosenType))
+            {
+                detail += $", 선택:{failure.ChosenType}";
+            }
+
+            if (failure.CandidateCountBeforeRemoval > 0)
+            {
+                detail += $", 제거전후:{failure.CandidateCountBeforeRemoval}->0";
+            }
+
+            return detail;
+        }
+
+        private static string FormatHistory(List<string> history)
+        {
+            if (history == null || history.Count == 0) return "(no history)";
+            return string.Join("\n", history);
+        }
+
+        private bool IsAllowedForBlocked(string typeId)
+        {
+            if (blockedTypeIds == null || blockedTypeIds.Count == 0) return true;
+            return blockedTypeIds.Contains(typeId);
+        }
+
+        private bool IsAllowedForUnblocked(string typeId)
+        {
+            if (unblockedTypeIds == null || unblockedTypeIds.Count == 0) return true;
+            return unblockedTypeIds.Contains(typeId);
+        }
+
+        private struct FailureInfo
+        {
+            public int CellIndex;
+            public Vector2Int Coordinates;
+            public int SelectedCellIndex;
+            public Vector2Int SelectedCoordinates;
+            public bool SelectedIsBlocked;
+            public string Message;
+            public string NeighborType;
+            public string ChosenType;
+            public int CandidateCountBeforeRemoval;
         }
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using GridMapGenerator.Data;
 using GridMapGenerator.Modules;
 using UnityEngine;
@@ -101,6 +102,17 @@ namespace GridMapGenerator.Core
 
         [Header("WFC")]
         public WfcTileRules WfcRules;
+        [Tooltip("Usage.IsBlocked에 따라 WFC 후보를 분리할지 여부")]
+        public bool WfcRespectUsageBlocked = true;
+        [Tooltip("WFC 실패 시 재시도 여부")]
+        public bool WfcRestartOnFailure = true;
+        [Tooltip("재시도 최대 횟수(0이면 한 번만 시도)")]
+        [Min(0)]
+        public int WfcMaxRetries = 2;
+        [Tooltip("재시도 시 시드를 시도 횟수만큼 증가시켜 사용할지 여부")]
+        public bool WfcUseNewSeedOnRetry = true;
+        [Tooltip("WFC 디버그 로그(후보 변화 히스토리) 출력")]
+        public bool WfcVerboseLogging = false;
 
         [Tooltip("3단계 Constraint 모듈 선택 (멀티 선택 가능)")]
         public ConstraintModuleOption ConstraintModules = ConstraintModuleOption.None;
@@ -192,7 +204,25 @@ namespace GridMapGenerator.Core
 
             if (GenerationModules.HasFlag(GenerationModuleOption.Wfc))
             {
-                pipeline.RegisterModule(new WfcGenerationModule(WfcRules, seedsToUse));
+                HashSet<string> blockedTypes = null;
+                HashSet<string> unblockedTypes = null;
+                var respectBlocked = false;
+                if (tileRules is TileAssignmentRules assignmentRules && tileSet != null && WfcRespectUsageBlocked)
+                {
+                    assignmentRules.BuildBlockedTypeSets(GenerationModules, tileSet, out blockedTypes, out unblockedTypes);
+                    respectBlocked = true;
+                }
+
+                pipeline.RegisterModule(new WfcGenerationModule(
+                    WfcRules,
+                    seedsToUse,
+                    respectBlocked,
+                    blockedTypes,
+                    unblockedTypes,
+                    WfcRestartOnFailure,
+                    WfcMaxRetries,
+                    WfcUseNewSeedOnRetry,
+                    WfcVerboseLogging));
             }
 
             if (GenerationModules.HasFlag(GenerationModuleOption.SimpleVariant))
