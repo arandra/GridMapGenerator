@@ -96,10 +96,66 @@ namespace GridMapGenerator.Data
                 .Where(t => t != null && !string.IsNullOrWhiteSpace(t.TypeId) && t.Prefab != null)
                 .Select(t => t.TypeId));
 
+            // 기본 규칙에 나온 타일(Weight>0, Prefab 있음)을 먼저 확인하고,
+            // ConditionalRules가 있으면 Blocked/Unblocked를 한쪽으로 제한한다.
             foreach (var option in rule.GetUsableTiles(tileSet))
             {
-                blocked.Add(option.TypeId);
-                unblocked.Add(option.TypeId);
+                var typeId = option.TypeId;
+                // ConditionalRules에서 OverrideTypeId가 일치하는 항목을 찾아 요구 조건을 집계한다.
+                bool hasAny = false;
+                bool hasBlocked = false;
+                bool hasUnblocked = false;
+                if (ConditionalRules != null)
+                {
+                    foreach (var cond in ConditionalRules)
+                    {
+                        if (cond == null) continue;
+                        if (string.IsNullOrWhiteSpace(cond.OverrideTypeId)) continue;
+                        if (cond.OverrideTypeId != typeId) continue;
+
+                        switch (cond.RequireBlocked)
+                        {
+                            case ConditionalTileRule.BlockRequirement.Blocked:
+                                hasBlocked = true;
+                                break;
+                            case ConditionalTileRule.BlockRequirement.Unblocked:
+                                hasUnblocked = true;
+                                break;
+                            case ConditionalTileRule.BlockRequirement.Any:
+                                hasAny = true;
+                                break;
+                        }
+                    }
+                }
+
+                // 기본값: 양쪽 다 허용. 단, 조건부 규칙이 한쪽만 지정했으면 그쪽으로 제한.
+                bool allowBlocked = true;
+                bool allowUnblocked = true;
+
+                if (hasBlocked && !hasUnblocked)
+                {
+                    allowUnblocked = false;
+                }
+                else if (hasUnblocked && !hasBlocked)
+                {
+                    allowBlocked = false;
+                }
+                else if (hasAny && !hasBlocked && !hasUnblocked)
+                {
+                    // Any만 있으면 양쪽 유지
+                    allowBlocked = true;
+                    allowUnblocked = true;
+                }
+
+                if (allowBlocked)
+                {
+                    blocked.Add(typeId);
+                }
+
+                if (allowUnblocked)
+                {
+                    unblocked.Add(typeId);
+                }
             }
 
             if (ConditionalRules == null || ConditionalRules.Count == 0)
@@ -107,6 +163,7 @@ namespace GridMapGenerator.Data
                 return;
             }
 
+            // 조건부 규칙에만 등장하는 타입(기본 규칙에 없는 경우)을 추가로 포함시킨다.
             foreach (var cond in ConditionalRules)
             {
                 if (cond == null) continue;
@@ -122,7 +179,6 @@ namespace GridMapGenerator.Data
                         unblocked.Add(cond.OverrideTypeId);
                         break;
                     case ConditionalTileRule.BlockRequirement.Any:
-                    default:
                         blocked.Add(cond.OverrideTypeId);
                         unblocked.Add(cond.OverrideTypeId);
                         break;

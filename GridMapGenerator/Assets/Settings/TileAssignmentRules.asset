@@ -23,7 +23,7 @@ MonoBehaviour:
   ConditionalRules:
   - RequireBlocked: 1
     OverrideTypeId: block1
-    WeightMultiplier: 0
+    WeightMultiplier: 1
   - RequireBlocked: 2
     OverrideTypeId: block2
     WeightMultiplier: 3

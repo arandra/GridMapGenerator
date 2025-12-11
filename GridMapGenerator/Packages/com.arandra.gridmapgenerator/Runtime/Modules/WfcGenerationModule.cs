@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using GridMapGenerator;
@@ -120,9 +121,31 @@ namespace GridMapGenerator.Modules
             while (true)
             {
                 var cellIndex = FindLowestEntropyCell(candidates);
-                if (cellIndex < 0)
+                if (cellIndex == -1)
                 {
                     return true; // 모든 셀 결정됨
+                }
+                if (cellIndex == -2)
+                {
+                    failure = new FailureInfo
+                    {
+                        CellIndex = -1,
+                        SelectedCellIndex = -1,
+                        SelectedCoordinates = Vector2Int.zero,
+                        SelectedIsBlocked = false,
+                        SelectedTypeId = string.Empty,
+                        Message = "후보가 0인 셀이 존재합니다.",
+                        NeighborType = string.Empty,
+                        ChosenType = string.Empty,
+                        Coordinates = Vector2Int.zero,
+                        CandidateCountBeforeRemoval = 0,
+                        InfluenceTypeId = string.Empty,
+                        InfluenceIsBlocked = false,
+                        InfluenceCandidatesBefore = Array.Empty<string>(),
+                        InfluenceCandidatesAfter = Array.Empty<string>(),
+                        RemovedCandidates = Array.Empty<string>()
+                    };
+                    return false;
                 }
 
                 var candidateList = candidates[cellIndex];
@@ -134,22 +157,36 @@ namespace GridMapGenerator.Modules
                         SelectedCellIndex = cellIndex,
                         SelectedCoordinates = ToCoords(context, cellIndex),
                         SelectedIsBlocked = context[cellIndex].Usage.IsBlocked,
+                        SelectedTypeId = context[cellIndex].Terrain.TypeId,
                         Message = "후보가 없습니다.",
                         NeighborType = string.Empty,
                         ChosenType = string.Empty,
                         Coordinates = ToCoords(context, cellIndex),
-                        CandidateCountBeforeRemoval = 0
+                        CandidateCountBeforeRemoval = 0,
+                        InfluenceTypeId = context[cellIndex].Terrain.TypeId,
+                        InfluenceIsBlocked = context[cellIndex].Usage.IsBlocked,
+                        InfluenceCandidatesBefore = Array.Empty<string>(),
+                        InfluenceCandidatesAfter = Array.Empty<string>(),
+                        RemovedCandidates = Array.Empty<string>()
                     };
                     return false;
                 }
 
                 var pick = Collapse(cellIndex, candidateList, random, joker);
-                history?.Add($"선택 {ToCoords(context, cellIndex)}(blocked:{context[cellIndex].Usage.IsBlocked}) => {pick.TypeId}, 후보:{string.Join(",", candidateList.Select(c => c.TypeId))}");
+                var coords = ToCoords(context, cellIndex);
+                history?.Add($"선택 {coords}(blocked:{context[cellIndex].Usage.IsBlocked}) => {pick.TypeId}, 후보:{string.Join(",", candidateList.Select(c => c.TypeId))}");
+                if (candidateList.Count == 1 && !verboseLogging)
+                {
+                    Debug.Log($"WFC 자동 확정(엔트로피1) {coords}(blocked:{context[cellIndex].Usage.IsBlocked}) => {pick.TypeId}");
+                }
 
                 if (!TryApplyChoice(context, candidates, cellIndex, pick, joker, history, out failure))
                 {
                     return false;
                 }
+
+                // 결정된 셀은 더 이상 엔트로피 계산 대상에서 제외한다.
+                candidates[cellIndex] = null;
             }
         }
 
@@ -163,8 +200,22 @@ namespace GridMapGenerator.Modules
                 blockedPool = normalTiles.Where(t => IsAllowedForBlocked(t.TypeId)).ToList();
                 unblockedPool = normalTiles.Where(t => IsAllowedForUnblocked(t.TypeId)).ToList();
 
-                if (blockedPool.Count == 0) blockedPool = normalTiles;
-                if (unblockedPool.Count == 0) unblockedPool = normalTiles;
+                if (blockedPool.Count == 0)
+                {
+                    Debug.LogWarning("WFC: Usage.IsBlocked=true 셀에 사용할 수 있는 후보가 없습니다. blockedTypeIds를 확인하세요.");
+                }
+
+                if (unblockedPool.Count == 0)
+                {
+                    Debug.LogWarning("WFC: Usage.IsBlocked=false 셀에 사용할 수 있는 후보가 없습니다. unblockedTypeIds를 확인하세요.");
+                }
+
+                if (verboseLogging)
+                {
+                    var blockedList = blockedPool?.Select(t => t.TypeId).ToList() ?? new List<string>();
+                    var unblockedList = unblockedPool?.Select(t => t.TypeId).ToList() ?? new List<string>();
+                    Debug.Log($"WFC 후보 분리: blocked=[{string.Join(",", blockedList)}], unblocked=[{string.Join(",", unblockedList)}]");
+                }
             }
 
             var all = new List<WfcTileRule>[context.CellCount];
@@ -179,7 +230,7 @@ namespace GridMapGenerator.Modules
                     source = isBlocked ? blockedPool : unblockedPool;
                 }
 
-                if (source.Count > 0)
+                if (source != null && source.Count > 0)
                 {
                     list.AddRange(source);
                 }
@@ -201,15 +252,16 @@ namespace GridMapGenerator.Modules
 
             for (int i = 0; i < candidates.Length; i++)
             {
-                if (candidates[i] == null || candidates[i].Count == 0)
+                if (candidates[i] == null)
                 {
                     continue;
                 }
 
                 var count = candidates[i].Count;
-                if (count <= 1)
+                if (count == 0)
                 {
-                    continue;
+                    // 이미 모순 상태
+                    return -2;
                 }
 
                 if (count < bestCount)
@@ -279,6 +331,7 @@ namespace GridMapGenerator.Modules
                 }
 
                 var beforeCount = list.Count;
+                var beforeTypesSnapshot = list.Select(r => r.TypeId).ToList();
                 bool removed = list.RemoveAll(rule => !choice.AllowsNeighbor(rule.TypeId)) > 0;
                 if (removed && history != null)
                 {
@@ -295,17 +348,24 @@ namespace GridMapGenerator.Modules
                     }
                     else
                     {
+                        var removedTypesSnapshot = beforeTypesSnapshot.ToArray();
                         failure = new FailureInfo
                         {
                             CellIndex = idx,
                             SelectedCellIndex = cellIndex,
                             SelectedCoordinates = new Vector2Int(x, y),
                             SelectedIsBlocked = context[cellIndex].Usage.IsBlocked,
+                            SelectedTypeId = choice.TypeId,
                             Message = $"이웃 {choice.TypeId} 제약으로 후보가 모두 제거됨",
                             NeighborType = choice.TypeId,
                             ChosenType = choice.TypeId,
                             Coordinates = new Vector2Int(nx, ny),
-                            CandidateCountBeforeRemoval = beforeCount
+                            CandidateCountBeforeRemoval = beforeCount,
+                            InfluenceTypeId = context[idx].Terrain.TypeId,
+                            InfluenceIsBlocked = context[idx].Usage.IsBlocked,
+                            InfluenceCandidatesBefore = removedTypesSnapshot,
+                            InfluenceCandidatesAfter = Array.Empty<string>(),
+                            RemovedCandidates = removedTypesSnapshot
                         };
                         return false;
                     }
@@ -372,6 +432,33 @@ namespace GridMapGenerator.Modules
                 detail += $", 제거전후:{failure.CandidateCountBeforeRemoval}->0";
             }
 
+            if (!string.IsNullOrWhiteSpace(failure.SelectedTypeId))
+            {
+                detail += $", 결정셀Type:{failure.SelectedTypeId}";
+            }
+
+            if (!string.IsNullOrWhiteSpace(failure.InfluenceTypeId))
+            {
+                detail += $", 영향셀Type:{failure.InfluenceTypeId}";
+            }
+
+            detail += $", 영향셀Blocked:{failure.InfluenceIsBlocked}";
+
+            if (failure.InfluenceCandidatesBefore != null && failure.InfluenceCandidatesBefore.Length > 0)
+            {
+                detail += $", 영향셀후보(전):[{string.Join(",", failure.InfluenceCandidatesBefore)}]";
+            }
+
+            if (failure.InfluenceCandidatesAfter != null && failure.InfluenceCandidatesAfter.Length > 0)
+            {
+                detail += $", 영향셀후보(후):[{string.Join(",", failure.InfluenceCandidatesAfter)}]";
+            }
+
+            if (failure.RemovedCandidates != null && failure.RemovedCandidates.Length > 0)
+            {
+                detail += $", 제거된후보:[{string.Join(",", failure.RemovedCandidates)}]";
+            }
+
             return detail;
         }
 
@@ -400,10 +487,16 @@ namespace GridMapGenerator.Modules
             public int SelectedCellIndex;
             public Vector2Int SelectedCoordinates;
             public bool SelectedIsBlocked;
+            public string SelectedTypeId;
             public string Message;
             public string NeighborType;
             public string ChosenType;
             public int CandidateCountBeforeRemoval;
+            public string InfluenceTypeId;
+            public bool InfluenceIsBlocked;
+            public string[] InfluenceCandidatesBefore;
+            public string[] InfluenceCandidatesAfter;
+            public string[] RemovedCandidates;
         }
     }
 }

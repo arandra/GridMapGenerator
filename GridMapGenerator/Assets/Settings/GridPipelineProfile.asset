@@ -40,4 +40,9 @@ MonoBehaviour:
   InitialCenterOffset: 0
   ScrollingCorridorDebugLog: 1
   WfcRules: {fileID: 11400000, guid: 952089902d2d1794088c346b7e98968b, type: 2}
+  WfcRespectUsageBlocked: 1
+  WfcRestartOnFailure: 0
+  WfcMaxRetries: 2
+  WfcUseNewSeedOnRetry: 1
+  WfcVerboseLogging: 0
   ConstraintModules: -1
