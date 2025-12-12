@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using GridMapGenerator.Data;
@@ -9,6 +10,7 @@ namespace GridMapGenerator.Editor
 {
     public sealed class WfcRuleGridEditorWindow : EditorWindow
     {
+        private const string PrefsKey = "GridMapGenerator.WfcRuleGridEditorWindow.State";
         private const int DefaultWidth = 4;
         private const int DefaultHeight = 4;
         private const float MinCellSize = 0.1f;
@@ -19,8 +21,7 @@ namespace GridMapGenerator.Editor
         private int gridWidth = DefaultWidth;
         private int gridHeight = DefaultHeight;
         private float cellSize = 1f;
-        private bool useFrequencyWeight = true;
-        private float defaultWeight = 1f;
+        private ForwardAxis forwardAxis = ForwardAxis.Up;
         private bool useXZPlane = true;
         private bool previewWithMeshes = true;
 
@@ -48,7 +49,7 @@ namespace GridMapGenerator.Editor
 
         private void OnEnable()
         {
-            InitGrid(gridWidth, gridHeight);
+            LoadState();
             CreatePreviewUtility();
         }
 
@@ -57,6 +58,7 @@ namespace GridMapGenerator.Editor
             CleanupPreviewObjects();
             DestroyMaterials();
             DisposePreviewUtility();
+            SaveState();
         }
 
         private void OnGUI()
@@ -110,14 +112,7 @@ namespace GridMapGenerator.Editor
                 }
             }
 
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                useFrequencyWeight = EditorGUILayout.ToggleLeft("가중치: 빈도 사용", useFrequencyWeight);
-                if (!useFrequencyWeight)
-                {
-                    defaultWeight = Mathf.Max(0f, EditorGUILayout.FloatField("기본 Weight", defaultWeight));
-                }
-            }
+            forwardAxis = (ForwardAxis)EditorGUILayout.EnumPopup(new GUIContent("Forward Axis", "Forward가 위쪽(Up, y+)인지 오른쪽(Right, x+)인지 선택"), forwardAxis);
         }
 
         private void DrawPalette()
@@ -175,6 +170,8 @@ namespace GridMapGenerator.Editor
         private void DrawGridControls()
         {
             EditorGUILayout.LabelField("샘플 그리드", EditorStyles.boldLabel);
+            var forwardLabel = forwardAxis == ForwardAxis.Up ? "앞(+Z)=위, 뒤(-Z)=아래" : "앞(+Z)=오른쪽, 뒤(-Z)=왼쪽";
+            EditorGUILayout.HelpBox($"좌(-X) ←→ 우(+X), {forwardLabel}", MessageType.None);
 
             if (grid == null)
             {
@@ -454,7 +451,7 @@ namespace GridMapGenerator.Editor
                 return;
             }
 
-            var tiles = new Dictionary<string, HashSet<string>>();
+            var directional = new Dictionary<string, DirectionalNeighbors>();
             var counts = new Dictionary<string, int>();
 
             for (int y = 0; y < gridHeight; y++)
@@ -478,8 +475,9 @@ namespace GridMapGenerator.Editor
                             continue;
                         }
 
-                        AddNeighbor(tiles, typeId, neighbor);
-                        AddNeighbor(tiles, neighbor, typeId);
+                        var direction = ToDirection(x, y, nx, ny);
+                        AddDirectionalNeighbor(directional, typeId, neighbor, direction);
+                        AddDirectionalNeighbor(directional, neighbor, typeId, Opposite(direction));
                     }
                 }
             }
@@ -495,13 +493,16 @@ namespace GridMapGenerator.Editor
 
             foreach (var kv in counts.OrderBy(k => k.Key))
             {
-                tiles.TryGetValue(kv.Key, out var allowed);
+                directional.TryGetValue(kv.Key, out var allowed);
                 var rule = new WfcTileRule
                 {
                     TypeId = kv.Key,
                     IsJoker = false,
-                    Weight = useFrequencyWeight ? kv.Value : defaultWeight,
-                    AllowedNeighbors = allowed?.ToList() ?? new List<string>()
+                    Weight = kv.Value,
+                    AllowedLeftNeighbors = allowed?.Left.ToList() ?? new List<string>(),
+                    AllowedRightNeighbors = allowed?.Right.ToList() ?? new List<string>(),
+                    AllowedForwardNeighbors = allowed?.Forward.ToList() ?? new List<string>(),
+                    AllowedBackwardNeighbors = allowed?.Backward.ToList() ?? new List<string>()
                 };
                 outputRules.Tiles.Add(rule);
             }
@@ -514,22 +515,64 @@ namespace GridMapGenerator.Editor
                 "확인");
         }
 
-        private void AddNeighbor(Dictionary<string, HashSet<string>> map, string source, string neighbor)
-        {
-            if (!map.TryGetValue(source, out var set))
-            {
-                set = new HashSet<string>();
-                map[source] = set;
-            }
-            set.Add(neighbor);
-        }
-
         private IEnumerable<(int x, int y)> EnumerateNeighbors(int x, int y)
         {
-            if (x > 0) yield return (x - 1, y);
-            if (x < gridWidth - 1) yield return (x + 1, y);
-            if (y > 0) yield return (x, y - 1);
-            if (y < gridHeight - 1) yield return (x, y + 1);
+            if (forwardAxis == ForwardAxis.Up)
+            {
+                if (x > 0) yield return (x - 1, y);
+                if (x < gridWidth - 1) yield return (x + 1, y);
+                if (y > 0) yield return (x, y - 1);
+                if (y < gridHeight - 1) yield return (x, y + 1);
+            }
+            else // Forward = Right
+            {
+                if (y > 0) yield return (x, y - 1);           // Left in world becomes Down
+                if (y < gridHeight - 1) yield return (x, y + 1); // Right in world becomes Up
+                if (x > 0) yield return (x - 1, y);           // Backward
+                if (x < gridWidth - 1) yield return (x + 1, y); // Forward
+            }
+        }
+
+        private void AddDirectionalNeighbor(Dictionary<string, DirectionalNeighbors> map, string source, string neighbor, WfcDirection direction)
+        {
+            if (!map.TryGetValue(source, out var dirs))
+            {
+                dirs = new DirectionalNeighbors();
+                map[source] = dirs;
+            }
+
+            dirs.Add(direction, neighbor);
+        }
+
+        private WfcDirection ToDirection(int x, int y, int nx, int ny)
+        {
+            if (forwardAxis == ForwardAxis.Up)
+            {
+                if (nx < x) return WfcDirection.Left;
+                if (nx > x) return WfcDirection.Right;
+                if (ny < y) return WfcDirection.Backward;
+                return WfcDirection.Forward;
+            }
+            else // Forward = Right
+            {
+                // Forward = +X, Backward = -X, Left = -Y, Right = +Y in grid indices
+                if (ny < y) return WfcDirection.Left;
+                if (ny > y) return WfcDirection.Right;
+                if (nx < x) return WfcDirection.Backward;
+                return WfcDirection.Forward;
+            }
+        }
+
+        private WfcDirection Opposite(WfcDirection direction)
+        {
+            return direction switch
+            {
+                WfcDirection.Left => WfcDirection.Right,
+                WfcDirection.Right => WfcDirection.Left,
+                WfcDirection.Forward => WfcDirection.Backward,
+                WfcDirection.Backward => WfcDirection.Forward,
+                _ => WfcDirection.Left
+            };
         }
 
         private void CreateNewRulesAsset()
@@ -554,6 +597,7 @@ namespace GridMapGenerator.Editor
             gridWidth = Mathf.Max(1, width);
             gridHeight = Mathf.Max(1, height);
             grid = new string[gridWidth, gridHeight];
+            SaveState();
         }
 
         private void ResizeGrid(int newWidth, int newHeight)
@@ -573,14 +617,28 @@ namespace GridMapGenerator.Editor
             gridWidth = newWidth;
             gridHeight = newHeight;
             grid = newGrid;
+            SaveState();
         }
 
         private Vector3 ToWorldPosition(int x, int y)
         {
-            var pos = new Vector3(x * cellSize, 0f, y * cellSize);
-            if (!useXZPlane)
+            Vector3 pos;
+            if (forwardAxis == ForwardAxis.Up)
             {
-                pos = new Vector3(x * cellSize, y * cellSize, 0f);
+                pos = new Vector3(x * cellSize, 0f, y * cellSize);
+                if (!useXZPlane)
+                {
+                    pos = new Vector3(x * cellSize, y * cellSize, 0f);
+                }
+            }
+            else
+            {
+                // Forward=Right → swap x/z for preview consistency
+                pos = new Vector3(y * cellSize, 0f, x * cellSize);
+                if (!useXZPlane)
+                {
+                    pos = new Vector3(y * cellSize, x * cellSize, 0f);
+                }
             }
             return pos;
         }
@@ -616,6 +674,201 @@ namespace GridMapGenerator.Editor
             previewUtility.camera.allowMSAA = true;
         }
 
+        #region State Save/Load
+        [Serializable]
+        private class WindowState
+        {
+            public int GridWidth;
+            public int GridHeight;
+            public float CellSize;
+            public int ForwardAxis;
+            public bool UseXZPlane;
+            public bool PreviewWithMeshes;
+            public Vector2 PreviewOrbit;
+            public float PreviewDistance;
+            public int BrushIndex;
+            public string[,] Grid;
+            public string TileSetGuid;
+            public string OutputRulesGuid;
+        }
+
+        private void SaveState()
+        {
+            try
+            {
+                var state = new WindowState
+                {
+                    GridWidth = gridWidth,
+                    GridHeight = gridHeight,
+                    CellSize = cellSize,
+                    ForwardAxis = (int)forwardAxis,
+                    UseXZPlane = useXZPlane,
+                    PreviewWithMeshes = previewWithMeshes,
+                    PreviewOrbit = previewOrbit,
+                    PreviewDistance = previewDistance,
+                    BrushIndex = brushIndex,
+                    Grid = grid,
+                    TileSetGuid = tileSet != null ? AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(tileSet)) : null,
+                    OutputRulesGuid = outputRules != null ? AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(outputRules)) : null
+                };
+
+                var json = JsonUtility.ToJson(new SerializableState(state));
+                EditorPrefs.SetString(PrefsKey, json);
+            }
+            catch
+            {
+                // 저장 실패 시 무시
+            }
+        }
+
+        private void LoadState()
+        {
+            var json = EditorPrefs.GetString(PrefsKey, null);
+            if (string.IsNullOrEmpty(json))
+            {
+                InitGrid(gridWidth, gridHeight);
+                return;
+            }
+
+            try
+            {
+                var serializable = JsonUtility.FromJson<SerializableState>(json);
+                var state = serializable?.ToState();
+                if (state == null)
+                {
+                    InitGrid(gridWidth, gridHeight);
+                    return;
+                }
+
+                gridWidth = Mathf.Max(1, state.GridWidth);
+                gridHeight = Mathf.Max(1, state.GridHeight);
+                cellSize = Mathf.Max(MinCellSize, state.CellSize <= 0f ? cellSize : state.CellSize);
+                forwardAxis = (ForwardAxis)state.ForwardAxis;
+                useXZPlane = state.UseXZPlane;
+                previewWithMeshes = state.PreviewWithMeshes;
+                previewOrbit = state.PreviewOrbit;
+                previewDistance = state.PreviewDistance > 0f ? state.PreviewDistance : previewDistance;
+                brushIndex = state.BrushIndex;
+
+                if (state.Grid != null &&
+                    state.Grid.GetLength(0) == gridWidth &&
+                    state.Grid.GetLength(1) == gridHeight)
+                {
+                    grid = state.Grid;
+                }
+                else
+                {
+                    InitGrid(gridWidth, gridHeight);
+                }
+
+                if (!string.IsNullOrEmpty(state.TileSetGuid))
+                {
+                    var path = AssetDatabase.GUIDToAssetPath(state.TileSetGuid);
+                    tileSet = AssetDatabase.LoadAssetAtPath<TileSetData>(path);
+                }
+
+                if (!string.IsNullOrEmpty(state.OutputRulesGuid))
+                {
+                    var path = AssetDatabase.GUIDToAssetPath(state.OutputRulesGuid);
+                    outputRules = AssetDatabase.LoadAssetAtPath<WfcTileRules>(path);
+                }
+            }
+            catch
+            {
+                InitGrid(gridWidth, gridHeight);
+            }
+        }
+
+        [Serializable]
+        private class SerializableState
+        {
+            public int GridWidth;
+            public int GridHeight;
+            public float CellSize;
+            public bool UseXZPlane;
+            public bool PreviewWithMeshes;
+            public Vector2 PreviewOrbit;
+            public float PreviewDistance;
+            public int BrushIndex;
+            public List<GridRow> Rows = new();
+            public string TileSetGuid;
+            public string OutputRulesGuid;
+            public int ForwardAxis;
+
+            [Serializable]
+            public class GridRow
+            {
+                public List<string> Cells = new();
+            }
+
+            public SerializableState()
+            {
+            }
+
+            public SerializableState(WindowState state)
+            {
+                GridWidth = state.GridWidth;
+                GridHeight = state.GridHeight;
+                CellSize = state.CellSize;
+                UseXZPlane = state.UseXZPlane;
+                PreviewWithMeshes = state.PreviewWithMeshes;
+                PreviewOrbit = state.PreviewOrbit;
+                PreviewDistance = state.PreviewDistance;
+                BrushIndex = state.BrushIndex;
+                ForwardAxis = (int)state.ForwardAxis;
+                TileSetGuid = state.TileSetGuid;
+                OutputRulesGuid = state.OutputRulesGuid;
+
+                if (state.Grid != null)
+                {
+                    for (int y = 0; y < state.Grid.GetLength(1); y++)
+                    {
+                        var row = new GridRow();
+                        for (int x = 0; x < state.Grid.GetLength(0); x++)
+                        {
+                            row.Cells.Add(state.Grid[x, y]);
+                        }
+                        Rows.Add(row);
+                    }
+                }
+            }
+
+            public WindowState ToState()
+            {
+                var state = new WindowState
+                {
+                    GridWidth = GridWidth,
+                    GridHeight = GridHeight,
+                    CellSize = CellSize,
+                    UseXZPlane = UseXZPlane,
+                    PreviewWithMeshes = PreviewWithMeshes,
+                    PreviewOrbit = PreviewOrbit,
+                    PreviewDistance = PreviewDistance,
+                    BrushIndex = BrushIndex,
+                    ForwardAxis = ForwardAxis,
+                    TileSetGuid = TileSetGuid,
+                    OutputRulesGuid = OutputRulesGuid
+                };
+
+                if (GridWidth > 0 && GridHeight > 0 && Rows != null && Rows.Count == GridHeight)
+                {
+                    var g = new string[GridWidth, GridHeight];
+                    for (int y = 0; y < GridHeight; y++)
+                    {
+                        var row = Rows[y];
+                        for (int x = 0; x < GridWidth && x < row.Cells.Count; x++)
+                        {
+                            g[x, y] = row.Cells[x];
+                        }
+                    }
+                    state.Grid = g;
+                }
+
+                return state;
+            }
+        }
+        #endregion
+
         private void DisposePreviewUtility()
         {
             if (previewUtility != null)
@@ -648,5 +901,32 @@ namespace GridMapGenerator.Editor
             }
             previewObjects.Clear();
         }
+    }
+
+    internal sealed class DirectionalNeighbors
+    {
+        public readonly HashSet<string> Left = new();
+        public readonly HashSet<string> Right = new();
+        public readonly HashSet<string> Forward = new();
+        public readonly HashSet<string> Backward = new();
+
+        public void Add(WfcDirection direction, string typeId)
+        {
+            var set = direction switch
+            {
+                WfcDirection.Left => Left,
+                WfcDirection.Right => Right,
+                WfcDirection.Forward => Forward,
+                WfcDirection.Backward => Backward,
+                _ => Left
+            };
+            set.Add(typeId);
+        }
+    }
+
+    internal enum ForwardAxis
+    {
+        Up,
+        Right
     }
 }

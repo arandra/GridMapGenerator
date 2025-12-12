@@ -154,6 +154,7 @@ namespace GridMapGenerator.Editor
 
             if (!ValidateTileRules(out var validationError))
             {
+                Debug.LogError($"GridMapTestWindow: 타일 규칙 오류 - {validationError}");
                 EditorUtility.DisplayDialog("타일 규칙 오류", validationError, "확인");
                 return;
             }

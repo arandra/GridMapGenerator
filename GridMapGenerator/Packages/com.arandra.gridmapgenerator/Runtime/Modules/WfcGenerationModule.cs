@@ -167,7 +167,8 @@ namespace GridMapGenerator.Modules
                         InfluenceIsBlocked = context[cellIndex].Usage.IsBlocked,
                         InfluenceCandidatesBefore = Array.Empty<string>(),
                         InfluenceCandidatesAfter = Array.Empty<string>(),
-                        RemovedCandidates = Array.Empty<string>()
+                        RemovedCandidates = Array.Empty<string>(),
+                        SelectedNeighborSummaries = SnapshotNeighborSummaries(context, candidates, cellIndex)
                     };
                     return false;
                 }
@@ -319,9 +320,9 @@ namespace GridMapGenerator.Modules
             candidates[cellIndex].Add(choice);
             context[x, y].Terrain.TypeId = choice.TypeId;
 
-            // 이웃 제약 전파 (상하좌우 동일 규칙)
+            // 이웃 제약 전파 (방향별 규칙)
             var neighbors = GetNeighbors(context, x, y);
-            foreach (var (nx, ny) in neighbors)
+            foreach (var (nx, ny, direction) in neighbors)
             {
                 var idx = ny * width + nx;
                 var list = candidates[idx];
@@ -332,11 +333,13 @@ namespace GridMapGenerator.Modules
 
                 var beforeCount = list.Count;
                 var beforeTypesSnapshot = list.Select(r => r.TypeId).ToList();
-                bool removed = list.RemoveAll(rule => !choice.AllowsNeighbor(rule.TypeId)) > 0;
+                bool removed = list.RemoveAll(rule =>
+                    !(choice.AllowsNeighbor(rule.TypeId, direction) &&
+                      rule.AllowsNeighbor(choice.TypeId, Opposite(direction)))) > 0;
                 if (removed && history != null)
                 {
-                    var beforeTypes = string.Join(",", list.Select(r => r.TypeId));
-                    history.Add($"전파 {ToCoords(context, cellIndex)}->{(nx, ny)} removeNotAllowed:{choice.TypeId} beforeCount:{beforeCount} afterCount:{list.Count} after:{beforeTypes}");
+                    var afterTypes = string.Join(",", list.Select(r => r.TypeId));
+                    history.Add($"전파 {ToCoords(context, cellIndex)}->{(nx, ny)} dir:{direction} removeNotAllowed:{choice.TypeId} beforeCount:{beforeCount} afterCount:{list.Count} after:{afterTypes}");
                 }
 
                 if (list.Count == 0)
@@ -361,11 +364,14 @@ namespace GridMapGenerator.Modules
                             ChosenType = choice.TypeId,
                             Coordinates = new Vector2Int(nx, ny),
                             CandidateCountBeforeRemoval = beforeCount,
+                            Direction = direction,
                             InfluenceTypeId = context[idx].Terrain.TypeId,
                             InfluenceIsBlocked = context[idx].Usage.IsBlocked,
                             InfluenceCandidatesBefore = removedTypesSnapshot,
                             InfluenceCandidatesAfter = Array.Empty<string>(),
-                            RemovedCandidates = removedTypesSnapshot
+                            RemovedCandidates = removedTypesSnapshot,
+                            SelectedNeighborSummaries = SnapshotNeighborSummaries(context, candidates, cellIndex),
+                            InfluenceNeighborSummaries = SnapshotNeighborSummaries(context, candidates, idx)
                         };
                         return false;
                     }
@@ -377,12 +383,24 @@ namespace GridMapGenerator.Modules
             return true;
         }
 
-        private static IEnumerable<(int x, int y)> GetNeighbors(GridContext context, int x, int y)
+        private static IEnumerable<(int x, int y, WfcDirection direction)> GetNeighbors(GridContext context, int x, int y)
         {
-            if (x > 0) yield return (x - 1, y);
-            if (x < context.Meta.Width - 1) yield return (x + 1, y);
-            if (y > 0) yield return (x, y - 1);
-            if (y < context.Meta.Height - 1) yield return (x, y + 1);
+            if (x > 0) yield return (x - 1, y, WfcDirection.Left);
+            if (x < context.Meta.Width - 1) yield return (x + 1, y, WfcDirection.Right);
+            if (y > 0) yield return (x, y - 1, WfcDirection.Backward);
+            if (y < context.Meta.Height - 1) yield return (x, y + 1, WfcDirection.Forward);
+        }
+
+        private static WfcDirection Opposite(WfcDirection direction)
+        {
+            return direction switch
+            {
+                WfcDirection.Left => WfcDirection.Right,
+                WfcDirection.Right => WfcDirection.Left,
+                WfcDirection.Forward => WfcDirection.Backward,
+                WfcDirection.Backward => WfcDirection.Forward,
+                _ => WfcDirection.Left
+            };
         }
 
         private static Vector2Int ToCoords(GridContext context, int index)
@@ -410,6 +428,31 @@ namespace GridMapGenerator.Modules
             {
                 context[i].Terrain.TypeId = snapshot[i];
             }
+        }
+
+        private string[] SnapshotNeighborSummaries(GridContext context, List<WfcTileRule>[] candidates, int centerIndex)
+        {
+            if (centerIndex < 0 || centerIndex >= context.CellCount) return Array.Empty<string>();
+
+            var width = context.Meta.Width;
+            int x = centerIndex % width;
+            int y = centerIndex / width;
+
+            var summaries = new List<string>();
+            foreach (var (nx, ny, direction) in GetNeighbors(context, x, y))
+            {
+                var idx = ny * width + nx;
+                var cell = context[idx];
+                var list = candidates[idx];
+                var candidateTypes = list == null
+                    ? "(decided)"
+                    : list.Count == 0
+                        ? "(none)"
+                        : string.Join(",", list.Select(r => r.TypeId));
+                summaries.Add($"[{direction}]({nx},{ny}) type:{cell.Terrain.TypeId} blocked:{cell.Usage.IsBlocked} cand:{candidateTypes}");
+            }
+
+            return summaries.ToArray();
         }
 
         private static string FormatFailure(FailureInfo failure, int attempt, int seed)
@@ -443,6 +486,7 @@ namespace GridMapGenerator.Modules
             }
 
             detail += $", 영향셀Blocked:{failure.InfluenceIsBlocked}";
+            detail += $", 방향:{failure.Direction}";
 
             if (failure.InfluenceCandidatesBefore != null && failure.InfluenceCandidatesBefore.Length > 0)
             {
@@ -457,6 +501,16 @@ namespace GridMapGenerator.Modules
             if (failure.RemovedCandidates != null && failure.RemovedCandidates.Length > 0)
             {
                 detail += $", 제거된후보:[{string.Join(",", failure.RemovedCandidates)}]";
+            }
+
+            if (failure.SelectedNeighborSummaries != null && failure.SelectedNeighborSummaries.Length > 0)
+            {
+                detail += $", 결정셀주변:{string.Join(" | ", failure.SelectedNeighborSummaries)}";
+            }
+
+            if (failure.InfluenceNeighborSummaries != null && failure.InfluenceNeighborSummaries.Length > 0)
+            {
+                detail += $", 영향셀주변:{string.Join(" | ", failure.InfluenceNeighborSummaries)}";
             }
 
             return detail;
@@ -497,6 +551,9 @@ namespace GridMapGenerator.Modules
             public string[] InfluenceCandidatesBefore;
             public string[] InfluenceCandidatesAfter;
             public string[] RemovedCandidates;
+            public WfcDirection Direction;
+            public string[] SelectedNeighborSummaries;
+            public string[] InfluenceNeighborSummaries;
         }
     }
 }

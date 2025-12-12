@@ -16,17 +16,47 @@ MonoBehaviour:
   ModuleRules:
   - TargetModules: 8
     Tiles:
-    - TypeId: block1
+    - TypeId: bb
       Weight: 1
-    - TypeId: block2
+    - TypeId: ba
       Weight: 1
   ConditionalRules:
   - RequireBlocked: 1
-    OverrideTypeId: block1
+    OverrideTypeId: bb
     WeightMultiplier: 1
   - RequireBlocked: 2
-    OverrideTypeId: block2
+    OverrideTypeId: ba
     WeightMultiplier: 3
-  - RequireBlocked: 2
-    OverrideTypeId: block3
+  - RequireBlocked: 1
+    OverrideTypeId: b3-r
+    WeightMultiplier: 1
+  - RequireBlocked: 1
+    OverrideTypeId: b3-l
+    WeightMultiplier: 1
+  - RequireBlocked: 1
+    OverrideTypeId: b3-b
+    WeightMultiplier: 1
+  - RequireBlocked: 1
+    OverrideTypeId: b3-f
+    WeightMultiplier: 1
+  - RequireBlocked: 1
+    OverrideTypeId: b3-n
+    WeightMultiplier: 1
+  - RequireBlocked: 1
+    OverrideTypeId: b3-u
+    WeightMultiplier: 1
+  - RequireBlocked: 1
+    OverrideTypeId: b3-fl
+    WeightMultiplier: 1
+  - RequireBlocked: 1
+    OverrideTypeId: b3-fr
+    WeightMultiplier: 1
+  - RequireBlocked: 1
+    OverrideTypeId: b3-bl
+    WeightMultiplier: 1
+  - RequireBlocked: 1
+    OverrideTypeId: b3-br
+    WeightMultiplier: 1
+  - RequireBlocked: 1
+    OverrideTypeId: b3-11
     WeightMultiplier: 1

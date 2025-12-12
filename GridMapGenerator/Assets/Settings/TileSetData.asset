@@ -13,9 +13,29 @@ MonoBehaviour:
   m_Name: TileSetData
   m_EditorClassIdentifier: GridMapGenerator::GridMapGenerator.Data.TileSetData
   Tiles:
-  - TypeId: block1
+  - TypeId: bb
     Prefab: {fileID: 3286751462820151330, guid: c27e3a51897bd7a478528fe58e19e62f, type: 3}
-  - TypeId: block2
+  - TypeId: ba
     Prefab: {fileID: 6411891781742790299, guid: 920cb9e8e8c04d349b817d2923283f86, type: 3}
-  - TypeId: block3
+  - TypeId: b3-r
     Prefab: {fileID: 6411891781742790299, guid: 5648939e92b6b5b4a888bbe09e62e306, type: 3}
+  - TypeId: b3-l
+    Prefab: {fileID: 6411891781742790299, guid: 93ddea1cedacee349803001d62c15bfd, type: 3}
+  - TypeId: b3-b
+    Prefab: {fileID: 6411891781742790299, guid: 78cfddc4203cad8478837f0b12eda00f, type: 3}
+  - TypeId: b3-f
+    Prefab: {fileID: 6411891781742790299, guid: be2146c9f2e4d7e49a0c8fc03f669131, type: 3}
+  - TypeId: b3-n
+    Prefab: {fileID: 6411891781742790299, guid: c9d86cd9120383a4a9699fa21e20815d, type: 3}
+  - TypeId: b3-u
+    Prefab: {fileID: 6411891781742790299, guid: ea7644beea5f389408733b51f876d784, type: 3}
+  - TypeId: b3-fl
+    Prefab: {fileID: 6411891781742790299, guid: de945f7a0514acd48acdeb582f9aee74, type: 3}
+  - TypeId: b3-fr
+    Prefab: {fileID: 6411891781742790299, guid: 531dafdd2410f764e8022f62aa1c5913, type: 3}
+  - TypeId: b3-bl
+    Prefab: {fileID: 6411891781742790299, guid: b9d9f70591aada1439387813f0690bb9, type: 3}
+  - TypeId: b3-br
+    Prefab: {fileID: 6411891781742790299, guid: 977b180112e4e054e8dd4c6c4f4a9f45, type: 3}
+  - TypeId: b3-11
+    Prefab: {fileID: 6411891781742790299, guid: c8555aa933e71344cb06f7afcf30736f, type: 3}

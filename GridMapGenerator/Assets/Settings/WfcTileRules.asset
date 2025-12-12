@@ -13,22 +13,210 @@ MonoBehaviour:
   m_Name: WfcTileRules
   m_EditorClassIdentifier: GridMapGenerator::GridMapGenerator.Data.WfcTileRules
   Tiles:
-  - TypeId: block1
-    Weight: 20
+  - TypeId: b3-11
+    Weight: 1
     IsJoker: 0
-    AllowedNeighbors:
-    - block1
-    - block3
-  - TypeId: block2
-    Weight: 14
+    AllowedLeftNeighbors:
+    - b3-u
+    AllowedRightNeighbors:
+    - bb
+    AllowedForwardNeighbors:
+    - ba
+    AllowedBackwardNeighbors:
+    - ba
+  - TypeId: b3-b
+    Weight: 7
     IsJoker: 0
-    AllowedNeighbors:
-    - block3
-    - block2
-  - TypeId: block3
-    Weight: 22
+    AllowedLeftNeighbors:
+    - ba
+    AllowedRightNeighbors:
+    - bb
+    AllowedForwardNeighbors:
+    - bb
+    - b3-br
+    AllowedBackwardNeighbors:
+    - b3-bl
+    - bb
+    - b3-l
+  - TypeId: b3-bl
+    Weight: 2
     IsJoker: 0
-    AllowedNeighbors:
-    - block1
-    - block3
-    - block2
+    AllowedLeftNeighbors:
+    - ba
+    AllowedRightNeighbors:
+    - bb
+    AllowedForwardNeighbors:
+    - b3-b
+    - b3-r
+    AllowedBackwardNeighbors:
+    - ba
+  - TypeId: b3-br
+    Weight: 1
+    IsJoker: 0
+    AllowedLeftNeighbors:
+    - ba
+    AllowedRightNeighbors:
+    - b3-r
+    AllowedForwardNeighbors:
+    - ba
+    AllowedBackwardNeighbors:
+    - b3-b
+  - TypeId: b3-f
+    Weight: 6
+    IsJoker: 0
+    AllowedLeftNeighbors:
+    - bb
+    AllowedRightNeighbors:
+    - ba
+    AllowedForwardNeighbors:
+    - bb
+    - b3-fr
+    AllowedBackwardNeighbors:
+    - bb
+    - b3-l
+    - b3-fl
+  - TypeId: b3-fl
+    Weight: 2
+    IsJoker: 0
+    AllowedLeftNeighbors:
+    - bb
+    - b3-l
+    AllowedRightNeighbors:
+    - ba
+    AllowedForwardNeighbors:
+    - b3-fr
+    - b3-f
+    AllowedBackwardNeighbors:
+    - ba
+  - TypeId: b3-fr
+    Weight: 4
+    IsJoker: 0
+    AllowedLeftNeighbors:
+    - bb
+    - b3-r
+    AllowedRightNeighbors:
+    - ba
+    AllowedForwardNeighbors:
+    - ba
+    AllowedBackwardNeighbors:
+    - bb
+    - b3-fl
+    - b3-f
+  - TypeId: b3-l
+    Weight: 3
+    IsJoker: 0
+    AllowedLeftNeighbors:
+    - bb
+    - b3-u
+    AllowedRightNeighbors:
+    - b3-fl
+    - b3-n
+    - bb
+    AllowedForwardNeighbors:
+    - bb
+    - b3-f
+    - b3-b
+    AllowedBackwardNeighbors:
+    - ba
+  - TypeId: b3-n
+    Weight: 2
+    IsJoker: 0
+    AllowedLeftNeighbors:
+    - b3-l
+    - bb
+    AllowedRightNeighbors:
+    - ba
+    AllowedForwardNeighbors:
+    - ba
+    AllowedBackwardNeighbors:
+    - ba
+  - TypeId: b3-r
+    Weight: 3
+    IsJoker: 0
+    AllowedLeftNeighbors:
+    - bb
+    - b3-u
+    - b3-br
+    AllowedRightNeighbors:
+    - b3-fr
+    - bb
+    AllowedForwardNeighbors:
+    - ba
+    AllowedBackwardNeighbors:
+    - bb
+    - b3-bl
+  - TypeId: b3-u
+    Weight: 4
+    IsJoker: 0
+    AllowedLeftNeighbors:
+    - ba
+    AllowedRightNeighbors:
+    - bb
+    - b3-r
+    - b3-11
+    - b3-l
+    AllowedForwardNeighbors:
+    - ba
+    AllowedBackwardNeighbors:
+    - ba
+  - TypeId: ba
+    Weight: 48
+    IsJoker: 0
+    AllowedLeftNeighbors:
+    - b3-f
+    - b3-fr
+    - ba
+    - b3-fl
+    - b3-n
+    AllowedRightNeighbors:
+    - ba
+    - b3-u
+    - b3-bl
+    - b3-b
+    - b3-br
+    AllowedForwardNeighbors:
+    - b3-fl
+    - b3-l
+    - ba
+    - b3-n
+    - b3-u
+    - b3-bl
+    - b3-11
+    AllowedBackwardNeighbors:
+    - b3-fr
+    - b3-r
+    - ba
+    - b3-n
+    - b3-u
+    - b3-br
+    - b3-11
+  - TypeId: bb
+    Weight: 29
+    IsJoker: 0
+    AllowedLeftNeighbors:
+    - bb
+    - b3-u
+    - b3-bl
+    - b3-b
+    - b3-r
+    - b3-11
+    - b3-l
+    AllowedRightNeighbors:
+    - bb
+    - b3-fr
+    - b3-fl
+    - b3-l
+    - b3-r
+    - b3-f
+    - b3-n
+    AllowedForwardNeighbors:
+    - bb
+    - b3-f
+    - b3-fr
+    - b3-r
+    - b3-b
+    AllowedBackwardNeighbors:
+    - bb
+    - b3-f
+    - b3-l
+    - b3-b

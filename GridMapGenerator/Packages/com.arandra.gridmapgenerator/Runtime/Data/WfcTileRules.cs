@@ -26,22 +26,49 @@ namespace GridMapGenerator.Data
         [Tooltip("참이면 모순 해소용 조커 타일. 일반 선택에서는 제외된다.")]
         public bool IsJoker;
 
-        [Tooltip("이웃으로 허용되는 타일 TypeId 목록. 비어 있으면 모든 이웃을 허용.")]
-        public List<string> AllowedNeighbors = new();
+        [Tooltip("좌(-X) 방향으로 허용되는 TypeId 목록. 비어 있으면 모든 이웃을 허용.")]
+        public List<string> AllowedLeftNeighbors = new();
+        [Tooltip("우(+X) 방향으로 허용되는 TypeId 목록. 비어 있으면 모든 이웃을 허용.")]
+        public List<string> AllowedRightNeighbors = new();
+        [Tooltip("앞(+Z) 방향으로 허용되는 TypeId 목록. 비어 있으면 모든 이웃을 허용.")]
+        public List<string> AllowedForwardNeighbors = new();
+        [Tooltip("뒤(-Z) 방향으로 허용되는 TypeId 목록. 비어 있으면 모든 이웃을 허용.")]
+        public List<string> AllowedBackwardNeighbors = new();
 
-        public bool AllowsNeighbor(string neighborTypeId)
+        public bool AllowsNeighbor(string neighborTypeId, WfcDirection direction)
         {
             if (string.IsNullOrWhiteSpace(neighborTypeId))
             {
                 return false;
             }
 
-            if (AllowedNeighbors == null || AllowedNeighbors.Count == 0)
+            var list = GetAllowedList(direction);
+            if (list == null || list.Count == 0)
             {
                 return true;
             }
 
-            return AllowedNeighbors.Contains(neighborTypeId);
+            return list.Contains(neighborTypeId);
         }
+
+        private List<string> GetAllowedList(WfcDirection direction)
+        {
+            return direction switch
+            {
+                WfcDirection.Left => AllowedLeftNeighbors,
+                WfcDirection.Right => AllowedRightNeighbors,
+                WfcDirection.Forward => AllowedForwardNeighbors,
+                WfcDirection.Backward => AllowedBackwardNeighbors,
+                _ => null
+            };
+        }
+    }
+
+    public enum WfcDirection
+    {
+        Left,
+        Right,
+        Forward,
+        Backward
     }
 }
