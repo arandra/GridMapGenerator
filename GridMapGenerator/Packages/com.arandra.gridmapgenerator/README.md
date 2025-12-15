@@ -58,6 +58,7 @@ GridContext grid = profile.Run();
 - `TileSetData`: TypeId ↔ Prefab 매핑. TypeId/Prefab이 비어 있으면 무시됩니다.
 - `TileAssignmentRules`: Generation 모듈 마스크별 가중치 기반 TypeId 배정 규칙. 기본 전략은 Weight 비례 추첨(Weight ≤ 0 제외).
 - `WfcTileRules`: WFC 인접 허용 규칙(좌/우/앞/뒤 방향별)과 가중치. `IsJoker`=true인 타일은 모순 시에만 사용되도록 설계되어 있으므로 일반 Weight는 0 또는 매우 낮게 두는 것을 권장합니다.
+- `WFC Rule Grid Editor`: 샘플 그리드로 규칙을 만들 때 자동 회전 생성(0/90/180/270) 옵션과 타일별 회전 허용 토글을 제공해 네 방향 입력 부담을 줄일 수 있습니다.
 
 ## 에디터 테스트 모드 (Test Runner)
 1. `Create > Grid Map Generator > Test Settings`로 설정 자산을 만든 뒤, Pipeline Profile, TileSetData, TileAssignmentRules(필요 시 WfcTileRules)를 등록합니다.  

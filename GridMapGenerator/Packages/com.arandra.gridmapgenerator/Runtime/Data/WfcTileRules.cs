@@ -25,6 +25,10 @@ namespace GridMapGenerator.Data
         public float Weight = 1f;
         [Tooltip("참이면 모순 해소용 조커 타일. 일반 선택에서는 제외된다.")]
         public bool IsJoker;
+        [Tooltip("이 타일이 회전을 허용하는지 여부")]
+        public bool AllowRotation = true;
+        [Tooltip("회전 허용 시 적용할 Yaw(도 단위). 자동 생성 규칙은 0/90/180/270 중 하나입니다.")]
+        public int RotationDegrees;
 
         [Tooltip("좌(-X) 방향으로 허용되는 TypeId 목록. 비어 있으면 모든 이웃을 허용.")]
         public List<string> AllowedLeftNeighbors = new();

@@ -24,6 +24,8 @@ namespace GridMapGenerator.Editor
         private ForwardAxis forwardAxis = ForwardAxis.Up;
         private bool useXZPlane = true;
         private bool previewWithMeshes = true;
+        private bool autoGenerateRotations = true;
+        private readonly HashSet<string> rotationDisabledTypeIds = new();
 
         private string[,] grid;
         private int brushIndex = -1; // -1 = empty
@@ -113,6 +115,12 @@ namespace GridMapGenerator.Editor
             }
 
             forwardAxis = (ForwardAxis)EditorGUILayout.EnumPopup(new GUIContent("Forward Axis", "Forward가 위쪽(Up, y+)인지 오른쪽(Right, x+)인지 선택"), forwardAxis);
+            var newAutoRotation = EditorGUILayout.ToggleLeft(new GUIContent("자동 회전 생성(4방향)", "회전을 허용하는 타일에 대해 90/180/270도 규칙을 자동 생성합니다."), autoGenerateRotations);
+            if (newAutoRotation != autoGenerateRotations)
+            {
+                autoGenerateRotations = newAutoRotation;
+                SaveState();
+            }
         }
 
         private void DrawPalette()
@@ -152,6 +160,31 @@ namespace GridMapGenerator.Editor
                 }
             }
             EditorGUILayout.EndScrollView();
+
+            EditorGUILayout.LabelField("회전 허용", EditorStyles.boldLabel);
+            using (new EditorGUILayout.VerticalScope(GUI.skin.box))
+            {
+                foreach (var id in options)
+                {
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        var allowed = !rotationDisabledTypeIds.Contains(id);
+                        var newAllowed = EditorGUILayout.ToggleLeft(id, allowed);
+                        if (newAllowed != allowed)
+                        {
+                            if (newAllowed)
+                            {
+                                rotationDisabledTypeIds.Remove(id);
+                            }
+                            else
+                            {
+                                rotationDisabledTypeIds.Add(id);
+                            }
+                            SaveState();
+                        }
+                    }
+                }
+            }
 
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -494,17 +527,23 @@ namespace GridMapGenerator.Editor
             foreach (var kv in counts.OrderBy(k => k.Key))
             {
                 directional.TryGetValue(kv.Key, out var allowed);
-                var rule = new WfcTileRule
+                var baseRule = new WfcTileRule
                 {
                     TypeId = kv.Key,
                     IsJoker = false,
                     Weight = kv.Value,
+                    AllowRotation = IsRotationAllowed(kv.Key),
+                    RotationDegrees = 0,
                     AllowedLeftNeighbors = allowed?.Left.ToList() ?? new List<string>(),
                     AllowedRightNeighbors = allowed?.Right.ToList() ?? new List<string>(),
                     AllowedForwardNeighbors = allowed?.Forward.ToList() ?? new List<string>(),
                     AllowedBackwardNeighbors = allowed?.Backward.ToList() ?? new List<string>()
                 };
-                outputRules.Tiles.Add(rule);
+
+                foreach (var rule in ExpandRotations(baseRule))
+                {
+                    outputRules.Tiles.Add(rule);
+                }
             }
 
             EditorUtility.SetDirty(outputRules);
@@ -620,6 +659,86 @@ namespace GridMapGenerator.Editor
             SaveState();
         }
 
+        private bool IsRotationAllowed(string typeId)
+        {
+            if (string.IsNullOrWhiteSpace(typeId)) return false;
+            return !rotationDisabledTypeIds.Contains(typeId);
+        }
+
+        private IEnumerable<WfcTileRule> ExpandRotations(WfcTileRule baseRule)
+        {
+            yield return baseRule;
+
+            if (!autoGenerateRotations || !baseRule.AllowRotation)
+            {
+                yield break;
+            }
+
+            foreach (var degrees in new[] { 90, 180, 270 })
+            {
+                yield return RotateRule(baseRule, degrees);
+            }
+        }
+
+        private WfcTileRule RotateRule(WfcTileRule original, int rotationDegrees)
+        {
+            int steps = Mathf.Abs(rotationDegrees) % 360 / 90;
+            if (steps == 0)
+            {
+                return original;
+            }
+
+            var rule = new WfcTileRule
+            {
+                TypeId = original.TypeId,
+                IsJoker = original.IsJoker,
+                Weight = original.Weight,
+                AllowRotation = original.AllowRotation,
+                RotationDegrees = rotationDegrees,
+                AllowedLeftNeighbors = RotateAllowedNeighbors(original, WfcDirection.Left, steps),
+                AllowedRightNeighbors = RotateAllowedNeighbors(original, WfcDirection.Right, steps),
+                AllowedForwardNeighbors = RotateAllowedNeighbors(original, WfcDirection.Forward, steps),
+                AllowedBackwardNeighbors = RotateAllowedNeighbors(original, WfcDirection.Backward, steps)
+            };
+
+            return rule;
+        }
+
+        private List<string> RotateAllowedNeighbors(WfcTileRule original, WfcDirection targetDirection, int steps)
+        {
+            var sourceDirection = RotateDirection(targetDirection, 4 - steps); // rotate backwards to find source set
+            return GetAllowedList(original, sourceDirection)?.ToList() ?? new List<string>();
+        }
+
+        private WfcDirection RotateDirection(WfcDirection direction, int steps)
+        {
+            steps = ((steps % 4) + 4) % 4;
+            for (int i = 0; i < steps; i++)
+            {
+                direction = direction switch
+                {
+                    WfcDirection.Forward => WfcDirection.Right,
+                    WfcDirection.Right => WfcDirection.Backward,
+                    WfcDirection.Backward => WfcDirection.Left,
+                    WfcDirection.Left => WfcDirection.Forward,
+                    _ => direction
+                };
+            }
+            return direction;
+        }
+
+        private List<string> GetAllowedList(WfcTileRule rule, WfcDirection direction)
+        {
+            return direction switch
+            {
+                WfcDirection.Left => rule.AllowedLeftNeighbors,
+                WfcDirection.Right => rule.AllowedRightNeighbors,
+                WfcDirection.Forward => rule.AllowedForwardNeighbors,
+                WfcDirection.Backward => rule.AllowedBackwardNeighbors,
+                _ => null
+            };
+        }
+
         private Vector3 ToWorldPosition(int x, int y)
         {
             Vector3 pos;
@@ -690,6 +809,8 @@ namespace GridMapGenerator.Editor
             public string[,] Grid;
             public string TileSetGuid;
             public string OutputRulesGuid;
+            public bool AutoGenerateRotations;
+            public List<string> RotationDisabledTypeIds;
         }
 
         private void SaveState()
@@ -709,7 +830,9 @@ namespace GridMapGenerator.Editor
                     BrushIndex = brushIndex,
                     Grid = grid,
                     TileSetGuid = tileSet != null ? AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(tileSet)) : null,
-                    OutputRulesGuid = outputRules != null ? AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(outputRules)) : null
+                    OutputRulesGuid = outputRules != null ? AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(outputRules)) : null,
+                    AutoGenerateRotations = autoGenerateRotations,
+                    RotationDisabledTypeIds = rotationDisabledTypeIds.ToList()
                 };
 
                 var json = JsonUtility.ToJson(new SerializableState(state));
@@ -749,6 +872,16 @@ namespace GridMapGenerator.Editor
                 previewOrbit = state.PreviewOrbit;
                 previewDistance = state.PreviewDistance > 0f ? state.PreviewDistance : previewDistance;
                 brushIndex = state.BrushIndex;
+                autoGenerateRotations = state.AutoGenerateRotations;
+
+                rotationDisabledTypeIds.Clear();
+                if (state.RotationDisabledTypeIds != null)
+                {
+                    foreach (var id in state.RotationDisabledTypeIds.Where(s => !string.IsNullOrWhiteSpace(s)))
+                    {
+                        rotationDisabledTypeIds.Add(id);
+                    }
+                }
 
                 if (state.Grid != null &&
                     state.Grid.GetLength(0) == gridWidth &&
@@ -794,6 +927,8 @@ namespace GridMapGenerator.Editor
             public string TileSetGuid;
             public string OutputRulesGuid;
             public int ForwardAxis;
+            public bool AutoGenerateRotations;
+            public List<string> RotationDisabledTypeIds = new();
 
             [Serializable]
             public class GridRow
@@ -818,6 +953,8 @@ namespace GridMapGenerator.Editor
                 ForwardAxis = (int)state.ForwardAxis;
                 TileSetGuid = state.TileSetGuid;
                 OutputRulesGuid = state.OutputRulesGuid;
+                AutoGenerateRotations = state.AutoGenerateRotations;
+                RotationDisabledTypeIds = state.RotationDisabledTypeIds ?? new List<string>();
 
                 if (state.Grid != null)
                 {
@@ -845,10 +982,12 @@ namespace GridMapGenerator.Editor
                     PreviewOrbit = PreviewOrbit,
                     PreviewDistance = PreviewDistance,
                     BrushIndex = BrushIndex,
-                    ForwardAxis = ForwardAxis,
-                    TileSetGuid = TileSetGuid,
-                    OutputRulesGuid = OutputRulesGuid
-                };
+                ForwardAxis = ForwardAxis,
+                TileSetGuid = TileSetGuid,
+                OutputRulesGuid = OutputRulesGuid,
+                AutoGenerateRotations = AutoGenerateRotations,
+                RotationDisabledTypeIds = RotationDisabledTypeIds ?? new List<string>()
+            };
 
                 if (GridWidth > 0 && GridHeight > 0 && Rows != null && Rows.Count == GridHeight)
                 {

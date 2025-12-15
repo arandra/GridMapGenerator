@@ -54,6 +54,11 @@ namespace GridMapGenerator.Components
                 var instance = Instantiate(binding.Prefab, transform);
                 instance.name = $"{binding.TypeId}_{coords.x}_{coords.y}";
                 instance.transform.position = ToWorldPosition(context, coords);
+                var rotation = cell.Terrain.RotationDegrees;
+                var euler = context.Meta.CoordinatePlane == CoordinatePlane.XZ
+                    ? new Vector3(0f, rotation, 0f)
+                    : new Vector3(0f, 0f, rotation);
+                instance.transform.rotation = Quaternion.Euler(euler);
             }
         }
 

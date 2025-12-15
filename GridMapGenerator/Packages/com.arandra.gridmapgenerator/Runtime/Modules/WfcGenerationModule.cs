@@ -70,14 +70,14 @@ namespace GridMapGenerator.Modules
                 return;
             }
 
-            var initialTypes = SnapshotTypes(context);
+            var initialTerrain = SnapshotTerrain(context);
             var attempts = restartOnFailure ? Mathf.Max(1, maxRetries + 1) : 1;
             FailureInfo lastFailure = default;
             var history = verboseLogging ? new List<string>(256) : null;
 
             for (int attempt = 0; attempt < attempts; attempt++)
             {
-                RestoreTypes(context, initialTypes);
+                RestoreTerrain(context, initialTerrain);
 
                 var randomSeed = useNewSeedOnRetry ? seeds.GlobalSeed + attempt : seeds.GlobalSeed;
                 var random = new System.Random(randomSeed);
@@ -319,6 +319,7 @@ namespace GridMapGenerator.Modules
             candidates[cellIndex].Clear();
             candidates[cellIndex].Add(choice);
             context[x, y].Terrain.TypeId = choice.TypeId;
+            context[x, y].Terrain.RotationDegrees = choice.RotationDegrees;
 
             // 이웃 제약 전파 (방향별 규칙)
             var neighbors = GetNeighbors(context, x, y);
@@ -411,22 +412,27 @@ namespace GridMapGenerator.Modules
             return new Vector2Int(x, y);
         }
 
-        private static string[] SnapshotTypes(GridContext context)
+        private static TerrainSnapshot[] SnapshotTerrain(GridContext context)
         {
-            var snapshot = new string[context.CellCount];
+            var snapshot = new TerrainSnapshot[context.CellCount];
             for (int i = 0; i < context.CellCount; i++)
             {
-                snapshot[i] = context[i].Terrain.TypeId;
+                snapshot[i] = new TerrainSnapshot
+                {
+                    TypeId = context[i].Terrain.TypeId,
+                    RotationDegrees = context[i].Terrain.RotationDegrees
+                };
             }
             return snapshot;
         }
 
-        private static void RestoreTypes(GridContext context, string[] snapshot)
+        private static void RestoreTerrain(GridContext context, TerrainSnapshot[] snapshot)
         {
             if (snapshot == null) return;
             for (int i = 0; i < context.CellCount && i < snapshot.Length; i++)
             {
-                context[i].Terrain.TypeId = snapshot[i];
+                context[i].Terrain.TypeId = snapshot[i].TypeId;
+                context[i].Terrain.RotationDegrees = snapshot[i].RotationDegrees;
             }
         }
 
@@ -554,6 +560,12 @@ namespace GridMapGenerator.Modules
             public WfcDirection Direction;
             public string[] SelectedNeighborSummaries;
             public string[] InfluenceNeighborSummaries;
+        }
+
+        private struct TerrainSnapshot
+        {
+            public string TypeId;
+            public float RotationDegrees;
         }
     }
 }

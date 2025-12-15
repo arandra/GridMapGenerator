@@ -137,6 +137,7 @@ namespace GridMapGenerator
     {
         public string TypeId;
         public float TerrainNoise;
+        public float RotationDegrees;
     }
 
     [Serializable]
